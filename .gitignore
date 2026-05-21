@@ -15,6 +15,10 @@ __pycache__/
 *.cpio.gz
 vmlinuz
 
+# Large data files (>100MB, use Git LFS if needed)
+data/raw_events.jsonl
+data/strace/
+
 # IDE
 .vscode/
 .idea/

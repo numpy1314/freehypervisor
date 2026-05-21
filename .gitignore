@@ -1,0 +1,24 @@
+# Object files
+*.o
+*.ko
+*.mod
+*.mod.c
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Binary images
+*.img
+*.raw
+*.cpio.gz
+vmlinuz
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

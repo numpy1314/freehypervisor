@@ -1,0 +1,713 @@
+# HHAL Host Service Dependency Mapping
+# Maps raw OS-level events to architecture-agnostic service abstractions.
+#
+# Each rule: source + raw_name → service_class + service_name + direction
+# This file is itself a paper artifact — reviewers can audit the mapping directly.
+
+# === Syscall layer (VMM userspace → Host OS kernel) ===
+
+- source: syscall
+  raw_name: mmap
+  service_class: MEMORY
+  service_name: HV_MEM_ALLOC_BACKING
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: munmap
+  service_class: MEMORY
+  service_name: HV_MEM_FREE_BACKING
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: mprotect
+  service_class: MEMORY
+  service_name: HV_MEM_PROTECT
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: madvise
+  service_class: MEMORY
+  service_name: HV_MEM_ADVISE
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: mlock
+  service_class: MEMORY
+  service_name: HV_MEM_PIN
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: eventfd2
+  service_class: EVENT
+  service_name: HV_EVENT_CREATE
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: epoll_create1
+  service_class: EVENT
+  service_name: HV_EVENT_POLL_INIT
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: epoll_ctl
+  service_class: EVENT
+  service_name: HV_EVENT_POLL_CTL
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: epoll_wait
+  service_class: EVENT
+  service_name: HV_EVENT_POLL_WAIT
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: ppoll
+  service_class: EVENT
+  service_name: HV_EVENT_POLL_WAIT
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: futex
+  service_class: SYNC
+  service_name: HV_SYNC_FUTEX
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: clone
+  service_class: THREAD
+  service_name: HV_THREAD_CREATE
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: sched_setaffinity
+  service_class: THREAD
+  service_name: HV_VCPU_PIN
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: tgkill
+  service_class: THREAD
+  service_name: HV_THREAD_SIGNAL
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: timerfd_create
+  service_class: TIMER
+  service_name: HV_TIMER_CREATE
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: timerfd_settime
+  service_class: TIMER
+  service_name: HV_TIMER_ARM
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: clock_nanosleep
+  service_class: TIMER
+  service_name: HV_TIMER_SLEEP
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: memfd_create
+  service_class: MEMORY
+  service_name: HV_MEM_MEMFD_CREATE
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: rt_sigprocmask
+  service_class: SIGNAL
+  service_name: HV_SIGNAL_MASK
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: rt_sigaction
+  service_class: SIGNAL
+  service_name: HV_SIGNAL_HANDLER_SET
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: read
+  service_class: IO
+  service_name: HV_IO_READ
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: write
+  service_class: IO
+  service_name: HV_IO_WRITE
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: writev
+  service_class: IO
+  service_name: HV_IO_WRITEV
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: pread64
+  service_class: IO
+  service_name: HV_IO_PREAD
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: readv
+  service_class: IO
+  service_name: HV_IO_READV
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: close
+  service_class: IO
+  service_name: HV_IO_CLOSE
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: openat
+  service_class: IO
+  service_name: HV_IO_OPEN
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: newfstatat
+  service_class: IO
+  service_name: HV_IO_STAT
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: fcntl
+  service_class: IO
+  service_name: HV_IO_FCNTL
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: dup
+  service_class: IO
+  service_name: HV_IO_DUP
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: pipe2
+  service_class: IO
+  service_name: HV_IO_PIPE_CREATE
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: fallocate
+  service_class: MEMORY
+  service_name: HV_MEM_FILE_ALLOC
+  direction: VMM_TO_HOST_OS
+
+# === KVM ioctl layer (VMM userspace → Host KVM kernel module) ===
+
+- source: ioctl
+  raw_name: KVM_GET_API_VERSION
+  service_class: VM
+  service_name: HV_VM_CAPABILITY_QUERY
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_CREATE_VM
+  service_class: VM
+  service_name: HV_VM_CREATE
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_CHECK_EXTENSION
+  service_class: VM
+  service_name: HV_VM_CAPABILITY_QUERY
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_VCPU_MMAP_SIZE
+  service_class: VCPU
+  service_name: HV_VCPU_MMAP_SIZE_QUERY
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_SUPPORTED_CPUID
+  service_class: VCPU
+  service_name: HV_VCPU_CPUID_QUERY
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_CREATE_VCPU
+  service_class: VCPU
+  service_name: HV_VCPU_CREATE
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_RUN
+  service_class: VCPU
+  service_name: HV_VCPU_ENTER
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_USER_MEMORY_REGION
+  service_class: MEMORY
+  service_name: HV_MEM_REGISTER_GPA_RANGE
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_MEMORY_REGION
+  service_class: MEMORY
+  service_name: HV_MEM_REGISTER_GPA_RANGE
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_TSS_ADDR
+  service_class: MEMORY
+  service_name: HV_MEM_SET_TSS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_IDENTITY_MAP_ADDR
+  service_class: MEMORY
+  service_name: HV_MEM_SET_IDENTITY_MAP
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_IRQFD
+  service_class: IRQ
+  service_name: HV_IRQ_BIND_EVENT
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_IOEVENTFD
+  service_class: IO
+  service_name: HV_IO_BIND_EVENT
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_GSI_ROUTING
+  service_class: IRQ
+  service_name: HV_IRQ_ROUTE_CONFIG
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_INTERRUPT
+  service_class: IRQ
+  service_name: HV_IRQ_INJECT
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_IRQ_LINE
+  service_class: IRQ
+  service_name: HV_IRQ_LINE_ASSERT
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_DIRTY_LOG
+  service_class: MEMORY
+  service_name: HV_MEM_DIRTY_LOG_READ
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_CLEAR_DIRTY_LOG
+  service_class: MEMORY
+  service_name: HV_MEM_DIRTY_LOG_CLEAR
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_CPUID2
+  service_class: VCPU
+  service_name: HV_VCPU_SET_CPUID
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_CPUID2
+  service_class: VCPU
+  service_name: HV_VCPU_GET_CPUID
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_CPUID
+  service_class: VCPU
+  service_name: HV_VCPU_SET_CPUID
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_REGS
+  service_class: VCPU
+  service_name: HV_VCPU_GET_REGS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_REGS
+  service_class: VCPU
+  service_name: HV_VCPU_SET_REGS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_SREGS
+  service_class: VCPU
+  service_name: HV_VCPU_GET_SREGS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_SREGS
+  service_class: VCPU
+  service_name: HV_VCPU_SET_SREGS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_SREGS2
+  service_class: VCPU
+  service_name: HV_VCPU_GET_SREGS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_SREGS2
+  service_class: VCPU
+  service_name: HV_VCPU_SET_SREGS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_MSRS
+  service_class: VCPU
+  service_name: HV_VCPU_GET_MSRS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_MSRS
+  service_class: VCPU
+  service_name: HV_VCPU_SET_MSRS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_FPU
+  service_class: VCPU
+  service_name: HV_VCPU_GET_FPU
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_FPU
+  service_class: VCPU
+  service_name: HV_VCPU_SET_FPU
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_LAPIC
+  service_class: IRQ
+  service_name: HV_IRQ_LAPIC_GET
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_LAPIC
+  service_class: IRQ
+  service_name: HV_IRQ_LAPIC_SET
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_MP_STATE
+  service_class: VCPU
+  service_name: HV_VCPU_GET_MP_STATE
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_MP_STATE
+  service_class: VCPU
+  service_name: HV_VCPU_SET_MP_STATE
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_VCPU_EVENTS
+  service_class: VCPU
+  service_name: HV_VCPU_GET_EVENTS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_VCPU_EVENTS
+  service_class: VCPU
+  service_name: HV_VCPU_SET_EVENTS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_DEBUGREGS
+  service_class: VCPU
+  service_name: HV_VCPU_GET_DEBUGREGS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_DEBUGREGS
+  service_class: VCPU
+  service_name: HV_VCPU_SET_DEBUGREGS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_XSAVE
+  service_class: VCPU
+  service_name: HV_VCPU_GET_XSAVE
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_XSAVE
+  service_class: VCPU
+  service_name: HV_VCPU_SET_XSAVE
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_XCRS
+  service_class: VCPU
+  service_name: HV_VCPU_GET_XCRS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_XCRS
+  service_class: VCPU
+  service_name: HV_VCPU_SET_XCRS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_TRANSLATE
+  service_class: MEMORY
+  service_name: HV_MEM_GVA_TO_GPA
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_CREATE_IRQCHIP
+  service_class: IRQ
+  service_name: HV_IRQ_CHIP_CREATE
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_CREATE_PIT2
+  service_class: TIMER
+  service_name: HV_TIMER_PIT_CREATE
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_PIT2
+  service_class: TIMER
+  service_name: HV_TIMER_PIT_GET
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_PIT2
+  service_class: TIMER
+  service_name: HV_TIMER_PIT_SET
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_CLOCK
+  service_class: TIMER
+  service_name: HV_CLOCK_SET
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_CLOCK
+  service_class: TIMER
+  service_name: HV_CLOCK_GET
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_SIGNAL_MASK
+  service_class: VCPU
+  service_name: HV_VCPU_SET_SIGNAL_MASK
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_ENABLE_CAP
+  service_class: VM
+  service_name: HV_VM_ENABLE_CAP
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_NMI
+  service_class: VCPU
+  service_name: HV_VCPU_INJECT_NMI
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_GUEST_DEBUG
+  service_class: VCPU
+  service_name: HV_VCPU_SET_DEBUG
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_BOOT_CPU_ID
+  service_class: VCPU
+  service_name: HV_VCPU_SET_BOOT_ID
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_CREATE_DEVICE
+  service_class: IO
+  service_name: HV_IO_DEVICE_CREATE
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_DEVICE_ATTR
+  service_class: IO
+  service_name: HV_IO_DEVICE_SET_ATTR
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_DEVICE_ATTR
+  service_class: IO
+  service_name: HV_IO_DEVICE_GET_ATTR
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_TSC_KHZ
+  service_class: TIMER
+  service_name: HV_TIMER_TSC_SET_FREQ
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_TSC_KHZ
+  service_class: TIMER
+  service_name: HV_TIMER_TSC_GET_FREQ
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_MSR_INDEX_LIST
+  service_class: VCPU
+  service_name: HV_VCPU_MSR_LIST_QUERY
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_MSR_FEATURE_INDEX_LIST
+  service_class: VCPU
+  service_name: HV_VCPU_MSR_FEATURE_QUERY
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_IRQCHIP
+  service_class: IRQ
+  service_name: HV_IRQ_CHIP_GET
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_IRQCHIP
+  service_class: IRQ
+  service_name: HV_IRQ_CHIP_SET
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_IRQ_LINE_STATUS
+  service_class: IRQ
+  service_name: HV_IRQ_LINE_STATUS
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SET_VAPIC_ADDR
+  service_class: IRQ
+  service_name: HV_IRQ_VAPIC_SET_ADDR
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SIGNAL_MSI
+  service_class: IRQ
+  service_name: HV_IRQ_MSI_SIGNAL
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_REINJECT_CONTROL
+  service_class: IRQ
+  service_name: HV_IRQ_REINJECT_CTRL
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_REGISTER_COALESCED_MMIO
+  service_class: IO
+  service_name: HV_IO_MMIO_COALESCED_REGISTER
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_UNREGISTER_COALESCED_MMIO
+  service_class: IO
+  service_name: HV_IO_MMIO_COALESCED_UNREGISTER
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_X86_GET_MCE_CAP_SUPPORTED
+  service_class: VCPU
+  service_name: HV_VCPU_X86_MCE_CAP_QUERY
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_X86_SETUP_MCE
+  service_class: VCPU
+  service_name: HV_VCPU_X86_MCE_SETUP
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_X86_SET_MSR_FILTER
+  service_class: VCPU
+  service_name: HV_VCPU_X86_MSR_FILTER_SET
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_SMI
+  service_class: VCPU
+  service_name: HV_VCPU_INJECT_SMI
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_TPR_ACCESS_REPORTING
+  service_class: VCPU
+  service_name: HV_VCPU_TPR_ACCESS_REPORTING
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_GET_STATS_FD
+  service_class: VCPU
+  service_name: HV_VCPU_STATS_FD
+  direction: VMM_TO_HOST_KERNEL
+
+- source: ioctl
+  raw_name: KVM_KVMCLOCK_CTRL
+  service_class: TIMER
+  service_name: HV_CLOCK_CTRL
+  direction: VMM_TO_HOST_KERNEL
+
+- source: syscall
+  raw_name: brk
+  service_class: MEMORY
+  service_name: HV_MEM_HEAP_ADJUST
+  direction: VMM_TO_HOST_OS
+
+- source: syscall
+  raw_name: clone3
+  service_class: THREAD
+  service_name: HV_THREAD_CREATE
+  direction: VMM_TO_HOST_OS
+
+# === KVM tracepoint layer (Host kernel → VMM userspace) ===
+
+- source: tracepoint
+  raw_name: kvm_exit
+  service_class: VCPU
+  service_name: HV_VCPU_EXIT
+  direction: HYPERVISOR_TO_VMM
+
+- source: tracepoint
+  raw_name: kvm_entry
+  service_class: VCPU
+  service_name: HV_VCPU_ENTRY
+  direction: HYPERVISOR_INTERNAL
+
+- source: tracepoint
+  raw_name: kvm_userspace_exit
+  service_class: VCPU
+  service_name: HV_VCPU_USERSPACE_EXIT
+  direction: HYPERVISOR_TO_VMM
+
+- source: tracepoint
+  raw_name: kvm_mmio
+  service_class: IO
+  service_name: HV_IO_MMIO_EMULATION_REQUEST
+  direction: HYPERVISOR_TO_VMM
+
+- source: tracepoint
+  raw_name: kvm_pio
+  service_class: IO
+  service_name: HV_IO_PORT_EMULATION_REQUEST
+  direction: HYPERVISOR_TO_VMM
+
+- source: tracepoint
+  raw_name: kvm_page_fault
+  service_class: MEMORY
+  service_name: HV_MEM_STAGE2_FAULT_HANDLE
+  direction: HYPERVISOR_INTERNAL

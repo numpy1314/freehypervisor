@@ -382,12 +382,12 @@ kvm_pfn_t hva_to_pfn(struct kvm_follow_pfn *kfp)
 - **接口契约**: 通过 `cpuhp_setup_state()` 注册 CPU 热插拔回调；引用计数（kvm_usage_count）
 - **hot path**: 否
 
-#### CPU 热插拔 [L1]
-
 #### `cpuhp_setup_state()` [L1]
 - **源码**: `kernel/cpu.c`, KVM 调用在 `virt/kvm/kvm_main.c:5696`
 - **语义**: KVM 注册 `CPUHP_AP_KVM_ONLINE` 回调，CPU 上线/下线时启用/禁用虚拟化扩展。
+- **调用上下文**: consumer — 由 `kvm_enable_virtualization()` 在模块初始化时调用
 - **边界类型**: `kernel KPI`（Linux CPU 热插拔子系统）
+- **接口契约**: 注册 online/offline 回调；返回状态码；在 CPU 热插拔事件时内核回调 KVM
 - **hot path**: 否
 
 #### `on_each_cpu()` [L2]
@@ -409,21 +409,21 @@ kvm_pfn_t hva_to_pfn(struct kvm_follow_pfn *kfp)
 
 ### 2.5 VMX/SVM 操作
 
-#### Intel VMX [L1]
-- **源码目录**: `arch/x86/kvm/vmx/`
-- **关键操作**:
-  - `vmx_vcpu_load()` / `vmx_vcpu_put()` — 加载/卸载 VMCS
-  - `vmx_run()` — 通过 VMLAUNCH/VMRESUME 进入 guest
-  - `vmx_handle_exit()` — 处理 VM exit 事件
-- **边界类型**: `kernel KPI`（通过 `kvm_x86_ops` 间接调用）
-
-#### AMD SVM [L1]
-- **源码目录**: `arch/x86/kvm/svm/`
-- **关键操作**:
-  - `svm_vcpu_load()` / `svm_vcpu_put()` — 加载/卸载 VMCB
-  - `svm_vcpu_run()` — 通过 VMRUN 进入 guest
-  - `svm_handle_exit()` — 处理 #VMEXIT 事件
+#### Intel VMX 操作集 [L1]
+- **源码位置**: `arch/x86/kvm/vmx/vmx.c` 等
+- **语义**: Intel VMX 硬件虚拟化操作实现。通过 `kvm_x86_ops` 函数表（设置为 `vmx_x86_ops`）提供：VMCS 加载/卸载、VMLAUNCH/VMRESUME guest entry、VM exit 处理、EPT 管理等。
+- **调用上下文**: provider — 被 KVM 通用核心通过 `kvm_x86_ops->*` 调用
 - **边界类型**: `kernel KPI`
+- **接口契约**: 全部通过 `struct kvm_x86_ops` 函数指针表暴露；编译时选择（CONFIG_KVM_INTEL）；返回约定：0 成功 / 负 errno
+- **hot path**: 是（`vmx_run()` 和 `vmx_handle_exit()` 在每次 guest entry/exit 时执行）
+
+#### AMD SVM 操作集 [L1]
+- **源码位置**: `arch/x86/kvm/svm/svm.c` 等
+- **语义**: AMD SVM 硬件虚拟化操作实现。通过 `kvm_x86_ops` 函数表（设置为 `svm_x86_ops`）提供：VMCB 加载/卸载、VMRUN guest entry、#VMEXIT 处理、NPT 管理、AVIC 中断虚拟化、SEV 加密虚拟化等。
+- **调用上下文**: provider — 被 KVM 通用核心通过 `kvm_x86_ops->*` 调用
+- **边界类型**: `kernel KPI`
+- **接口契约**: 全部通过 `struct kvm_x86_ops` 函数指针表暴露；编译时选择（CONFIG_KVM_AMD）；支持 SEV-ES/SEV-SNP 扩展
+- **hot path**: 是
 
 ### 2.6 PMU 模拟
 
@@ -732,8 +732,10 @@ kvm_pfn_t hva_to_pfn(struct kvm_follow_pfn *kfp)
 - **边界类型**: 内部锁机制
 
 #### `spinlock_t` / `struct mutex` / `struct srcu_struct` [L3]
-- **语义**: KVM 广泛使用 Linux 锁原语：mmu_lock (spinlock)、slots_lock (mutex)、srcu (SRCU)。
+- **语义**: KVM 使用的 Linux 锁原语。`spinlock_t`（mmu_lock）保护 shadow page table / EPT；`struct mutex`（slots_lock）保护 memslot 变更；`struct srcu_struct`（kvm->srcu）保护 memslot 无锁读取。
 - **边界类型**: `kernel KPI`（Linux 锁子系统）
+- **调用上下文**: provider — Linux 内核锁 API，被 KVM 所有子系统使用
+- **接口契约**: spinlock 用于短临界区（不可睡眠）；mutex 用于可能睡眠的路径；SRCU 用于读多写少场景，读者不阻塞写者
 
 ### 6.7 Workqueue 与异步操作
 

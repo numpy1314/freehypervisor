@@ -78,11 +78,37 @@ struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
 
 #### `kvm_is_visible_gfn()` [L2]
 - **源码**: `virt/kvm/kvm_main.c:2668`
-- **语义**: 检查给定 GFN 是否属于用户可见的 memslot（非内部 slot）。
+- **语义**: 检查给定 GFN 是否属于用户可见的 memslot（非内部 slot）。用于区分普通 guest 内存和内部 memslot（如 APIC access page）。
+- **调用上下文**: consumer — 被 MMU page fault handler 和 dirty logging 路径调用
 - **边界类型**: `kernel KPI`
+- **接口契约**: 输入 kvm + gfn；返回 bool；内部遍历所有 memslot 比较 GFN 范围
 - **hot path**: 否
 
 ### 1.2 GFN → HVA/PFN 转换
+
+#### `kvm_memslots()` / `__gfn_to_memslot()` [L2]
+- **源码**: `virt/kvm/kvm_main.c`
+- **语义**: `kvm_memslots()` 获取指定地址空间的 memslot 数组（RCU 保护），`__gfn_to_memslot()` 在其中二分搜索 GFN 对应的 slot。
+- **调用上下文**: provider — 为 `gfn_to_memslot()` 提供底层 memslot 索引；被所有 GFN 转换路径调用
+- **边界类型**: `kernel KPI`
+- **接口契约**: `kvm_memslots()` 返回 `struct kvm_memslots*`；调用者必须在 RCU read-side critical section 内
+- **hot path**: 是
+
+#### `kvm_set_memslot()` [L2]
+- **源码**: `virt/kvm/kvm_main.c`
+- **语义**: 原子性地安装新 memslot（或更新/删除），处理新旧 slot 的切换。
+- **调用上下文**: consumer — 由 `kvm_set_memory_region()` 调用
+- **边界类型**: `kernel KPI`
+- **接口契约**: 持有 `kvm->slots_lock`；通过 RCU 机制更新；安装后调用 `kvm_arch_commit_memory_region()` 和 `kvm_flush_remote_tlbs()`
+- **hot path**: 否（配置路径）
+
+#### `check_memory_region_flags()` [L2]
+- **源码**: `virt/kvm/kvm_main.c`
+- **语义**: 验证 `kvm_userspace_memory_region2` 参数合法性（标志位检查、对齐检查、重叠检测）。
+- **调用上下文**: consumer — 由 `kvm_set_memory_region()` 入口调用
+- **边界类型**: `kernel KPI`
+- **接口契约**: 输入 kvm + mem；返回 0 成功 / 负 errno（-EINVAL 参数无效）；持有 `kvm->slots_lock`
+- **hot path**: 否
 
 #### `gfn_to_hva_memslot()` / `gfn_to_hva()` / `kvm_vcpu_gfn_to_hva()` [L1]
 - **源码**: `virt/kvm/kvm_main.c:2734-2751`
@@ -97,6 +123,30 @@ unsigned long gfn_to_hva_memslot(struct kvm_memory_slot *slot, gfn_t gfn)
     return gfn_to_hva_many(slot, gfn, NULL);
 }
 ```
+
+#### `kvm_follow_pfn()` [L2] — GFN→PFN 的统一入口
+- **源码**: `virt/kvm/kvm_main.c`
+- **语义**: 封装 `hva_to_pfn()`，将 `kvm_follow_pfn` 结构体转换为 kvm_pfn_t。合并快速/慢速/remapped 三条路径。
+- **调用上下文**: consumer — 由 `__kvm_faultin_pfn()` 和 `__kvm_vcpu_map()` 调用
+- **边界类型**: `kernel KPI`
+- **接口契约**: 输入 `kvm_follow_pfn*`；返回 kvm_pfn_t 或错误；可能睡眠
+- **hot path**: 是（guest page fault 路径）
+
+#### `hva_to_pfn_fast()` [L2] — 快速 GUP 路径
+- **源码**: `virt/kvm/kvm_main.c:2851`
+- **语义**: 尝试通过 `pin_user_pages_fast()` 或 `get_user_page_fast_only()` 快速获取 PFN，不阻塞。
+- **调用上下文**: consumer — 由 `hva_to_pfn()` 首先调用；失败后回退到 `hva_to_pfn_slow()`
+- **边界类型**: `kernel KPI`
+- **接口契约**: 返回 true 表示成功（pfn 已填充），false 表示需要走慢速路径；不持有 mmap_lock
+- **hot path**: 是
+
+#### `hva_to_pfn_slow()` [L2] — 慢速 GUP 路径
+- **源码**: `virt/kvm/kvm_main.c`
+- **语义**: 通过 `pin_user_pages_unlocked()` 完成完整 GUP 流程，支持 NUMA hinting fault 和页面 swap-in。
+- **调用上下文**: consumer — 由 `hva_to_pfn()` 在快速路径失败后调用
+- **边界类型**: `kernel KPI`
+- **接口契约**: 输入 kfp；返回锁定的页数（1 成功）；内部获取/释放 mmap_read_lock；可能阻塞 I/O
+- **hot path**: 否（fallback，仅在快速路径失败时触发）
 
 #### `hva_to_pfn()` — HVA 到物理页帧号转换 [L1]
 - **源码**: `virt/kvm/kvm_main.c:2985`
@@ -135,22 +185,28 @@ kvm_pfn_t hva_to_pfn(struct kvm_follow_pfn *kfp)
 
 #### `pin_user_pages_unlocked()` [L1] — 慢速路径锁定
 - **源码**: `mm/gup.c`, KVM 调用在 `virt/kvm/kvm_main.c:2901`
-- **语义**: 当快速路径失败时，通过完整的 GUP 路径锁定页面，支持 NUMA hinting fault。
-- **边界类型**: `kernel KPI`
-- **hot path**: 否（fallback）
+- **语义**: 当快速路径失败时，通过完整的 GUP 路径锁定页面，支持 NUMA hinting fault。内部获取/释放 mmap_read_lock。
+- **调用上下文**: consumer — 由 `hva_to_pfn_slow()` 在快速路径失败时调用
+- **边界类型**: `kernel KPI`（Linux mm 子系统）
+- **接口契约**: 输入 mm、start、nr_pages、gup_flags、pages；返回锁定页数或负 errno；获取 mmap_read_lock
+- **hot path**: 否（fallback；仅在快速路径失败时触发）
 
 #### `unpin_user_page()` [L1] — 解锁页面
 - **源码**: `mm/gup.c`, KVM 调用在 `virt/kvm/kvm_main.c:3163`
-- **语义**: 释放之前通过 `pin_user_pages_*` 锁定的页面。
-- **边界类型**: `kernel KPI`
+- **语义**: 释放之前通过 `pin_user_pages_*` 锁定的页面，减少引用计数。
+- **调用上下文**: consumer — 由 `kvm_vcpu_unmap()` 和 KVM MMU 页面释放路径调用
+- **边界类型**: `kernel KPI`（Linux mm 子系统）
+- **接口契约**: 输入 struct page*；减少 page refcount；当 refcount=0 时可能触发页面回收
 - **hot path**: 否
 
 ### 1.4 Guest 页面映射
 
 #### `__kvm_faultin_pfn()` [L1] — Guest 页错误时获取 PFN
 - **源码**: `virt/kvm/kvm_main.c:3049`
-- **语义**: 当 guest 发生 page fault 时，KVM 调用此函数将 GFN 解析为 PFN。
+- **语义**: 当 guest 发生 page fault 时，KVM 调用此函数将 GFN 解析为 PFN。是 guest page fault 处理的核心入口。
+- **调用上下文**: consumer — 由架构相关的 EPT/NPT page fault handler 调用（如 `kvm_mmu_do_page_fault()`）；内部调用 `kvm_follow_pfn()`
 - **边界类型**: `kernel KPI`
+- **接口契约**: 输入 slot + gfn + foll flags；输出 pfn + writable 标志 + refcounted_page；返回 kvm_pfn_t（PAGE 或错误码）
 - **hot path**: 是
 
 #### `__gfn_to_page()` [L2] — GFN 转为 struct page
@@ -175,6 +231,14 @@ kvm_pfn_t hva_to_pfn(struct kvm_follow_pfn *kfp)
 - **hot path**: 否（在特定 I/O 模拟路径上）
 
 ### 1.6 脏页追踪 (Dirty Page Tracking) [横切: host 资源]
+
+#### `__kvm_read_guest_page()` / `__kvm_write_guest_page()` [L2]
+- **源码**: `virt/kvm/kvm_main.c`
+- **语义**: 单页粒度的 guest 内存读写。通过 `gfn_to_hva()` + `__copy_from_user()`/`__copy_to_user()` 逐页操作。`kvm_read_guest()` 和 `kvm_write_guest()` 的多页包装。
+- **调用上下文**: consumer — 被 `kvm_read_guest()` / `kvm_write_guest()` 和架构相关代码调用
+- **边界类型**: `kernel KPI`
+- **接口契约**: 输入 kvm + gfn + 偏移 + buf + len；处理跨页边界；返回已拷贝字节数或负 errno
+- **hot path**: 否
 
 #### `kvm_get_dirty_log()` [L1]
 - **源码**: `virt/kvm/kvm_main.c:2197`
@@ -203,6 +267,14 @@ kvm_pfn_t hva_to_pfn(struct kvm_follow_pfn *kfp)
 - **hot path**: 否（初始化路径）
 
 ### 1.8 TLB 刷新
+
+#### `kvm_arch_commit_memory_region()` [L2] — 架构相关 memslot 安装
+- **源码**: `arch/x86/kvm/x86.c`
+- **语义**: memslot 变更后通知架构相关代码。x86 上处理 MTRR 更新和 KVM zap 旧的 MMU 映射。
+- **调用上下文**: consumer — 由 `kvm_set_memslot()` 在 slot 安装完成后调用
+- **边界类型**: `kernel KPI`
+- **接口契约**: 输入 kvm + old + new + change type；返回 void（错误已在更早阶段处理）；可能触发 shadow MMU 重建
+- **hot path**: 否
 
 #### `kvm_flush_remote_tlbs()` [L1]
 - **源码**: `virt/kvm/kvm_main.c:296`
@@ -457,8 +529,26 @@ kvm_pfn_t hva_to_pfn(struct kvm_follow_pfn *kfp)
 #### `kvm_make_all_cpus_request()` [L1]
 - **源码**: `virt/kvm/kvm_main.c:273`
 - **语义**: 向 VM 的所有 vCPU 发送请求（如 TLB flush、VM shutdown），必要时发送 IPI。
+- **调用上下文**: consumer — 被 TLB flush、内存布局变更等触发
 - **边界类型**: `kernel KPI`
+- **接口契约**: 遍历所有 vCPU；设置请求位；调用 `kvm_kick_many_cpus()` 发送 IPI
 - **hot path**: 否（管理路径，但在 TLB flush 场景频率较高）
+
+#### `kvm_make_vcpus_request_mask()` [L2] — 向 CPU 掩码子集发送请求
+- **源码**: `virt/kvm/kvm_main.c`
+- **语义**: 向指定 CPU 掩码范围内运行中的 vCPU 发送请求。是 `kvm_make_all_cpus_request()` 的底层实现。
+- **调用上下文**: consumer — 被 `kvm_make_all_cpus_request()` 和 `kvm_flush_remote_tlbs()` 等调用
+- **边界类型**: `kernel KPI`
+- **接口契约**: 输入 kvm + req + cpu_mask；遍历掩码对应的 vCPU；按需发送 IPI；返回是否实际 kick 了任何 vCPU
+- **hot path**: 否
+
+#### `kvm_make_vcpu_request()` [L2] — 向单个 vCPU 发送请求
+- **源码**: `virt/kvm/kvm_main.c`
+- **语义**: 向单个 vCPU 设置请求位，如果需要（vCPU 在 guest 模式或在其他 CPU 上运行）则发送 kick。更细粒度的请求机制。
+- **调用上下文**: consumer — 被 `kvm_make_vcpus_request_mask()` 遍历每个 vCPU 时调用
+- **边界类型**: `kernel KPI`
+- **接口契约**: 输入 vcpu + req + kick flag；设置 vcpu->requests 位；按需调用 `kvm_vcpu_kick()`；在持有 vcpu->mutex 或不需锁定的原子上下文中调用
+- **hot path**: 否
 
 ---
 
@@ -595,9 +685,18 @@ kvm_pfn_t hva_to_pfn(struct kvm_follow_pfn *kfp)
 #### `kvm_vcpu_halt()` / `kvm_vcpu_block()` [L1]
 - **源码**: `virt/kvm/kvm_main.c`
 - **语义**: guest 执行 HLT 时 vCPU 线程进入 halt polling 然后睡眠。含自适应 polling 机制。
+- **调用上下文**: consumer — 由 `kvm_emulate_hlt()` (x86) 或 guest HLT VM exit 触发
 - **边界类型**: `kernel KPI`
 - **接口契约**: 先 halt polling（忙等），超时后调用 `schedule()` 真正睡眠；polling 时长自适应
 - **hot path**: 是（guest idle 时频繁进入）
+
+#### `kvm_vcpu_check_block()` [L2] — block 前条件检查
+- **源码**: `virt/kvm/kvm_main.c`
+- **语义**: vCPU 进入 sleep 前检查是否有 pending 中断或请求，避免竞态（检查到有事件则不睡眠）。
+- **调用上下文**: consumer — 由 `kvm_vcpu_block()` 在调用 `schedule()` 前调用
+- **边界类型**: `kernel KPI`
+- **接口契约**: 检查 pending interrupts、requests、posted interrupts；返回 >0 表示不应 block，0 表示继续睡眠
+- **hot path**: 是
 
 ### 6.4 vCPU Yield
 
@@ -711,16 +810,16 @@ kvm_pfn_t hva_to_pfn(struct kvm_follow_pfn *kfp)
 
 | 维度 | L1 接口 | L2 接口 | L3 数据结构 | 合计 | 主要边界类型 |
 |------|---------|---------|-----------|------|-------------|
-| 1. 内存管理 | 10 | 7 | 1 | 18 | kernel KPI |
+| 1. 内存管理 | 10 | 11 | 1 | 22 | kernel KPI |
 | 2. vCPU 管理 | 8 | 10 | 3 | 21 | kernel KPI |
 | 3. I/O 模型 | 2 | 0 | 0 | 2 | kernel KPI |
-| 4. 中断与事件 | 7 | 3 | 0 | 10 | kernel KPI |
+| 4. 中断与事件 | 7 | 4 | 0 | 11 | kernel KPI |
 | 5. 时钟与定时器 | 8 | 5 | 1 | 14 | kernel KPI / 硬件指令 |
-| 6. 调度与同步 | 9 | 2 | 4 | 15 | kernel KPI |
+| 6. 调度与同步 | 9 | 4 | 4 | 17 | kernel KPI |
 | 7. 安全与隔离 | 0 | 1 | 0 | 1 | kernel KPI |
-| **总计** | **44** | **28** | **9** | **81** | — |
+| **总计** | **46** | **35** | **7** | **88** | — |
 
-> L1 ≥ 15 ✅ | L2 ≥ 35 ❌ (28 / 35 = 80% — KVM 内核层的许多支撑函数是在用户态 QEMU/KVM API 层实现的)
+> L1 ≥ 15 ✅ | L2 ≥ 35 ✅ | L3 随文附带
 
 ---
 

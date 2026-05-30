@@ -2,7 +2,7 @@
 
 > 本文档统计 KVM (Kernel-based Virtual Machine) 作为 Type-2 Hypervisor 与底层 Linux 内核之间的关键接口函数。
 > 源码基于 Linux 6.x (torvalds/linux master 分支)。
-> 源码位置: `code/linux-kvm-reference/` 子目录。
+> 源码位置: `code/kvm-linux-reference/` 子目录。
 > 
 > **分类框架**: 7 维度统一框架 + 横切标签
 > **接口粒度**: 三级分层（L1 外部 API / L2 内部支撑 / L3 数据结构）
@@ -819,7 +819,7 @@ kvm_pfn_t hva_to_pfn(struct kvm_follow_pfn *kfp)
 | 5. 时钟与定时器 | 8 | 5 | 1 | 14 | kernel KPI / 硬件指令 |
 | 6. 调度与同步 | 9 | 4 | 4 | 17 | kernel KPI |
 | 7. 安全与隔离 | 0 | 1 | 0 | 1 | kernel KPI |
-| **总计** | **46** | **35** | **7** | **88** | — |
+| **总计** | **45** | **35** | **7** | **87** | — |
 
 > L1 ≥ 15 ✅ | L2 ≥ 35 ✅ | L3 随文附带
 

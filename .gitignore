@@ -19,6 +19,9 @@ vmlinuz
 data/raw_events.jsonl
 data/strace/
 
+# Humanize artifacts
+.humanize/
+
 # IDE
 .vscode/
 .idea/

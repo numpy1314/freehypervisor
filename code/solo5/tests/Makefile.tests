@@ -1,0 +1,100 @@
+# Copyright (c) 2015-2020 Contributors as noted in the AUTHORS file
+#
+# This file is part of Solo5, a sandboxed execution environment.
+#
+# Permission to use, copy, modify, and/or distribute this software
+# for any purpose with or without fee is hereby granted, provided
+# that the above copyright notice and this permission notice appear
+# in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+# WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+# AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
+# CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+# OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+# NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+# CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+.PHONY: all
+all:
+all_TARGETS :=
+
+.SUFFIXES:
+$(V).SILENT:
+
+ELFTOOL := $(TOPDIR)/elftool/solo5-elftool
+
+# As a test is currently a single source file, we don't try to do any
+# dependency auto-generation here, and just hard-code all expected dependencies
+# as pre-requisites below.
+
+manifest.c: manifest.json $(TOPDIR)/include/mft_abi.h $(ELFTOOL)
+	@echo "ELFTOOL $@"
+	$(ELFTOOL) gen-manifest $< $@
+
+%.o: %.c $(TOPDIR)/include/solo5.h
+	@echo "CC $@"
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+%.stub: %.o manifest.o
+	@echo "CCLD $@"
+	$(CC) $< manifest.o -o $@
+
+all_TARGETS += $(test_NAME).stub
+
+ifdef CONFIG_HVT
+%.hvt: %.o manifest.o
+	@echo "CCLD $@"
+	$(CC) -z solo5-abi=hvt $< manifest.o -o $@
+
+all_TARGETS += $(test_NAME).hvt
+endif
+
+ifdef CONFIG_SPT
+%.spt: %.o manifest.o
+	@echo "CCLD $@"
+	$(CC) -z solo5-abi=spt $< manifest.o -o $@
+
+all_TARGETS += $(test_NAME).spt
+endif
+
+ifdef CONFIG_VIRTIO
+%.virtio: %.o manifest.o
+	@echo "CCLD $@"
+	$(CC) -z solo5-abi=virtio $< manifest.o -o $@
+
+all_TARGETS += $(test_NAME).virtio
+endif
+
+ifdef CONFIG_MUEN
+%.muen: %.o manifest.o
+	@echo "CCLD $@"
+	$(CC) -z solo5-abi=muen $< manifest.o -o $@
+
+all_TARGETS += $(test_NAME).muen
+endif
+
+ifdef CONFIG_XEN
+%.xen: %.o manifest.o
+	@echo "CCLD $@"
+	$(CC) -z solo5-abi=xen $< manifest.o -o $@
+
+%.xl: %.xen
+	@echo "SUBST $@"
+	sed -e s/@@NAME@@/$(test_NAME)/ \
+	    -e s/@@KERNEL@@/$(test_NAME).xen/ \
+	    ../config.xl.in >$@
+
+all_TARGETS += $(test_NAME).xen $(test_NAME).xl
+endif
+
+.PRECIOUS: $(test_NAME).o manifest.o
+
+all: $(all_TARGETS)
+
+.PHONY: clean
+
+clean:
+	@echo "CLEAN $(test_NAME)"
+	$(RM) $(test_NAME).o manifest.c manifest.o $(all_TARGETS)

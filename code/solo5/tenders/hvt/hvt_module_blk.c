@@ -1,0 +1,253 @@
+/*
+ * Copyright (c) 2015-2019 Contributors as noted in the AUTHORS file
+ *
+ * This file is part of Solo5, a sandboxed execution environment.
+ *
+ * Permission to use, copy, modify, and/or distribute this software
+ * for any purpose with or without fee is hereby granted, provided
+ * that the above copyright notice and this permission notice appear
+ * in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+ * OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
+ * hvt_module_blk.c: Block device module.
+ */
+
+#define _GNU_SOURCE
+#define _FILE_OFFSET_BITS 64
+#include <assert.h>
+#include <err.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#if HVT_FREEBSD_ENABLE_CAPSICUM
+#include <sys/capsicum.h>
+#endif
+
+#include "../common/block_attach.h"
+#include "hvt.h"
+#include "solo5.h"
+
+static bool module_in_use;
+static struct mft *host_mft;
+
+static void hypercall_block_write(struct hvt *hvt, hvt_gpa_t gpa)
+{
+    struct hvt_hc_block_write *wr =
+        HVT_CHECKED_GPA_P(hvt, gpa, sizeof(struct hvt_hc_block_write));
+    const struct mft_entry *e =
+        mft_get_by_index(host_mft, wr->handle, MFT_DEV_BLOCK_BASIC);
+    if (e == NULL) {
+        wr->ret = SOLO5_R_EINVAL;
+        return;
+    }
+
+    ssize_t ret;
+    off_t pos, end;
+
+    if (wr->len > SSIZE_MAX || wr->offset >= e->u.block_basic.capacity) {
+        wr->ret = SOLO5_R_EINVAL;
+        return;
+    }
+    pos = wr->offset;
+    if (add_overflow(pos, wr->len, end) ||
+        (end > (off_t)e->u.block_basic.capacity)) {
+        wr->ret = SOLO5_R_EINVAL;
+        return;
+    }
+
+    ret = pwrite(e->b.hostfd, HVT_CHECKED_GPA_P(hvt, wr->data, wr->len),
+                 wr->len, pos);
+    if (ret == -1) {
+        fprintf(stderr, "Fatal error when writing: %s\n", strerror(errno));
+        exit(1);
+    } else if ((size_t)ret != wr->len) {
+        fprintf(stderr, "Fatal error: wrote only %ld out of %ld bytes\n", ret,
+                wr->len);
+        exit(1);
+    }
+    wr->ret = SOLO5_R_OK;
+}
+
+static void hypercall_block_read(struct hvt *hvt, hvt_gpa_t gpa)
+{
+    struct hvt_hc_block_read *rd =
+        HVT_CHECKED_GPA_P(hvt, gpa, sizeof(struct hvt_hc_block_read));
+    const struct mft_entry *e =
+        mft_get_by_index(host_mft, rd->handle, MFT_DEV_BLOCK_BASIC);
+    if (e == NULL) {
+        rd->ret = SOLO5_R_EINVAL;
+        return;
+    }
+
+    ssize_t ret;
+    off_t pos, end;
+
+    if (rd->len > SSIZE_MAX || rd->offset >= e->u.block_basic.capacity) {
+        rd->ret = SOLO5_R_EINVAL;
+        return;
+    }
+    pos = rd->offset;
+    if (add_overflow(pos, rd->len, end) ||
+        (end > (off_t)e->u.block_basic.capacity)) {
+        rd->ret = SOLO5_R_EINVAL;
+        return;
+    }
+
+    ret = pread(e->b.hostfd, HVT_CHECKED_GPA_P(hvt, rd->data, rd->len), rd->len,
+                pos);
+    if (ret == -1) {
+        fprintf(stderr, "Fatal error when reading: %s\n", strerror(errno));
+        exit(1);
+    } else if ((size_t)ret != rd->len) {
+        fprintf(stderr, "Fatal error: read only %ld out of %ld bytes\n", ret,
+                rd->len);
+        exit(1);
+    }
+    rd->ret = SOLO5_R_OK;
+}
+
+#define BLOCK_PREFIX             "--block:"
+#define BLOCK_SECTOR_SIZE_PREFIX "--block-sector-size:"
+
+static int handle_cmdarg(char *cmdarg, struct mft *mft)
+{
+    enum {
+        opt_block,
+        opt_block_size,
+    } which;
+    if (strncmp(BLOCK_PREFIX, cmdarg, sizeof(BLOCK_PREFIX) - 1) == 0)
+        which = opt_block;
+    else if (strncmp(BLOCK_SECTOR_SIZE_PREFIX, cmdarg,
+                     sizeof(BLOCK_SECTOR_SIZE_PREFIX) - 1) == 0)
+        which = opt_block_size;
+    else
+        return -1;
+
+    char name[MFT_NAME_SIZE];
+    if (which == opt_block) {
+        char path[PATH_MAX + 1];
+        int rc =
+            sscanf(cmdarg,
+                   BLOCK_PREFIX "%" XSTR(MFT_NAME_MAX) "[A-Za-z0-9]="
+                                                       "%" XSTR(PATH_MAX) "s",
+                   name, path);
+        if (rc != 2)
+            return -1;
+
+        struct mft_entry *e =
+            mft_get_by_name(mft, name, MFT_DEV_BLOCK_BASIC, NULL);
+        if (e == NULL) {
+            warnx("Resource not declared in manifest: '%s'", name);
+            return -1;
+        }
+        off_t capacity;
+        int fd = block_attach(path, &capacity);
+        /* e->u.block_basic.block_size is set either by option or generated
+         * later by setup().
+         */
+        e->u.block_basic.capacity = capacity;
+        e->b.hostfd = fd;
+        e->attached = true;
+        module_in_use = true;
+    } else if (which == opt_block_size) {
+        uint16_t block_size;
+        int rc = sscanf(cmdarg,
+                        BLOCK_SECTOR_SIZE_PREFIX
+                        "%" XSTR(MFT_NAME_MAX) "[A-Za-z0-9]="
+                                               "%hu",
+                        name, &block_size);
+        if (rc != 2)
+            return -1;
+        if (block_size < 512 || block_size & (block_size - 1)) {
+            warnx(
+                "Block size must be a multiple of 2 greater than or equal 512");
+            return -1;
+        }
+
+        struct mft_entry *e =
+            mft_get_by_name(mft, name, MFT_DEV_BLOCK_BASIC, NULL);
+        if (e == NULL) {
+            warnx("Resource not declared in manifest: '%s'", name);
+            return -1;
+        }
+        e->u.block_basic.block_size = block_size;
+    }
+
+    return 0;
+}
+
+static int setup(struct hvt *hvt, struct mft *mft)
+{
+    if (!module_in_use)
+        return 0;
+
+    host_mft = mft;
+    assert(hvt_core_register_hypercall(HVT_HYPERCALL_BLOCK_WRITE,
+                                       hypercall_block_write) == 0);
+    assert(hvt_core_register_hypercall(HVT_HYPERCALL_BLOCK_READ,
+                                       hypercall_block_read) == 0);
+
+    for (unsigned i = 0; i != mft->entries; i++) {
+        if (mft->e[i].type != MFT_DEV_BLOCK_BASIC || !mft->e[i].attached)
+            continue;
+
+        /*
+         * We now set default block_size if needed, and check that the capacity
+         * is block aligned, and the capacity is not zero.
+         */
+        if (mft->e[i].u.block_basic.block_size == 0)
+            mft->e[i].u.block_basic.block_size = 512;
+        const char *name = mft->e[i].name;
+        uint16_t block_size = mft->e[i].u.block_basic.block_size;
+        off_t capacity = mft->e[i].u.block_basic.capacity;
+
+        assert((block_size & (block_size - 1)) == 0);
+        /* this assumes block_size is a power of 2 */
+        if ((capacity & (block_size - 1)) != 0)
+            errx(1,
+                 "%." XSTR(MFT_NAME_MAX) "s: Backing storage size must be "
+                                         "block aligned (%hu bytes)",
+                 name, block_size);
+        if (capacity < block_size)
+            errx(1,
+                 "%." XSTR(MFT_NAME_MAX) "s: Backing storage must be at least "
+                                         "1 block (%hu bytes) "
+                                         "in size",
+                 name, block_size);
+    }
+
+#if HVT_FREEBSD_ENABLE_CAPSICUM
+    cap_rights_t rights;
+    cap_rights_init(&rights, CAP_READ, CAP_WRITE, CAP_SEEK);
+    if (cap_rights_limit(diskfd, &rights) == -1)
+        err(1, "cap_rights_limit() failed");
+#endif
+
+    return 0;
+}
+
+static const char *usage(void)
+{
+    return "--block:NAME=PATH (attach block device/file at PATH as block "
+           "storage NAME)\n"
+           "  [ --block-sector-size:NAME=SECTORSIZE ] (set sector size for "
+           "block device NAME; must be a power of two greater than or equal "
+           "512)";
+}
+
+DECLARE_MODULE(block, .setup = setup, .handle_cmdarg = handle_cmdarg,
+               .usage = usage)

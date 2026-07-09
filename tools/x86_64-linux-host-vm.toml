@@ -1,0 +1,29 @@
+[base]
+id = 1
+name = "linux-x86_64-qemu"
+vm_type = 1
+cpu_num = 1
+phys_cpu_ids = [1]
+
+[kernel]
+entry_point = 0x8000
+boot_protocol = "direct"
+image_location = "memory"
+kernel_path = ""
+kernel_load_addr = 0x20_0000
+ramdisk_path = ""
+ramdisk_load_addr = 0x40_00000
+cmdline = "console=ttyS0 earlyprintk=serial root=/dev/vda rw rootwait devtmpfs.mount=1 init=/init reboot=k panic=1 acpi=off pci=conf1 pci=nomsi irqpoll nox2apic tsc=unstable no_timer_check initcall_blacklist=ahci_pci_driver_init,i8042_init"
+memory_regions = [
+  # Linux-host mode cannot reuse host-owned low RAM for identity DMA. The
+  # smoke launcher reserves this host physical range with memmap before insmod.
+  [0x4000_0000, 0x0800_0000, 0x7, 1],
+  [0x0000_0000, 0x0010_0000, 0x7, 0],
+]
+
+[devices]
+interrupt_mode = "passthrough"
+passthrough_devices = [["HPET", 0xfed0_0000, 0xfed0_0000, 0x1000, 0x1]]
+passthrough_addresses = [[0x8000_0000, 0x20_0000], [0x8_0000_0000, 0x20_0000], [0xfe00_0000, 0x00c0_0000], [0xfed8_0000, 0x1000], [0x70_0000_0000, 0x10_0000], [0x3800_0000_0000, 0x10_0000]]
+passthrough_ports = [[0x6000, 0x80], [0xc000, 0x80]]
+emu_devices = [["x86-com1", 0x3f8, 0x8, 0x0, 0x2, []], ["x86-ioapic", 0xfec0_0000, 0x1000, 0x0, 0x23, []], ["x86-pit", 0x40, 0x22, 0x0, 0x24, []]]

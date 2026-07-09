@@ -15,12 +15,25 @@ __pycache__/
 *.cpio.gz
 vmlinuz
 
+# Local experiment outputs and external checkouts
+output/
+linux-host-kernel/
+ivans-asterinas-axvisor-host/
+linux_vdso/
+
 # Large data files (>100MB, use Git LFS if needed)
 data/raw_events.jsonl
 data/strace/
 
 # Humanize artifacts
 .humanize/
+
+# LaTeX intermediate files
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
 
 # IDE
 .vscode/

@@ -1,0 +1,502 @@
+================================================================
+Hypervisor 与 OS 接口契约：文献调研与第一性原理推导
+================================================================
+
+本文档分两大部分：
+  上半部分 —— 文献调研综述（理论基础从哪来）
+  下半部分 —— 从第一性原理推导接口契约（怎么把 7 组接口推出来）
+末尾附：推导逻辑 ↔ 论文对照表、参考文献清单。
+
+
+================================================================
+第一部分  文献调研综述
+================================================================
+
+论文核心论点：hypervisor 与底层 OS 的紧耦合本质上是软件架构问题，
+不是虚拟化的本质需求。只要定义一份"窄而语义忠实"的接口契约，同一个
+虚拟化核心就能跑在多个 OS 上。我们要从第一性原理推导这套契约，起点
+是硬件虚拟化的本质需求。
+
+调研分两条正交的线：
+  线 A（硬件侧公理内核）：虚拟化"本质上"需要什么
+  线 B（契约语义与可移植性）：如何刻画"对 OS 的假设 + 对 guest 的保证"
+
+
+----------------------------------------------------------------
+一、线 A：Popek-Goldberg 定理与虚拟化的形式化
+----------------------------------------------------------------
+
+1. Popek & Goldberg (1974)
+   《Formal Requirements for Virtualizable Third Generation Architectures》
+   Communications of the ACM, 17(7):412-421
+
+   形式化模型：把"第三代机器"建成状态机。处理器状态是一个元组，核心
+   包含执行模式 M（system/user 两态）、程序计数器 PC、以及重定位-边界
+   寄存器 R=(l,b)——l 给出对应"表观地址 0"的绝对地址，b 给出虚拟内存
+   绝对大小。R 无论何种模式恒定生效，这正是"内存资源映射(虚拟->物理)"
+   的形式化载体。模型有意省略 I/O 与中断。
+
+   指令三分类（全集 O = P ∪ S ∪ I）：
+     - 特权指令 P：user 模式下执行必陷入(trap)，system 模式下正常执行
+     - 敏感指令 S = C ∪ B：
+         控制敏感 C：试图改变系统资源配置(改模式、改 R 寄存器)
+         行为敏感 B：语义/结果依赖于系统资源配置(依赖 R 内容或当前模式)
+     - 无害指令 I：其余指令
+
+   VMM 三性质（本推导的公理支点）：
+     - 等价性 Equivalence：程序在 VM 内外行为本质一致
+     - 资源控制 Resource Control：VMM 完全掌控被虚拟资源，可随时收回
+     - 效率 Efficiency：绝大多数指令由硬件直接执行，无需 VMM 介入
+
+   核心定理（定理 1）：若敏感指令集 ⊆ 特权指令集(S ⊆ P)，则可构造有效
+   VMM。证明是构造性的：敏感指令都是特权指令 => 它们在 guest(跑在 user
+   模式)中执行时必然陷入 VMM => VMM 据此 trap-and-emulate 逐条模拟，维持
+   资源控制；无害指令直接硬件执行，保证效率。注意这是充分而非必要条件。
+     定理 2（递归虚拟化）：可虚拟化且能构造无时序依赖 VMM => 可递归虚拟化
+     （嵌套虚拟化的形式基础）。
+     定理 3（混合 VMM）：放松效率，只要 user-sensitive 指令 ⊆ 特权指令即可。
+
+   借鉴价值：这是"从硬件本质需求推导虚拟化所需能力"的原型——把"能否
+   虚拟化"归约为一个可机械检查的集合包含关系，并把 VMM 职责明确为
+   "截获敏感操作 + 维持资源映射"。
+
+
+2. Penneman et al. (2013)
+   《Formal virtualization requirements for the ARM architecture》
+   Journal of Systems Architecture, 59(3):144-154
+
+   核心贡献：因 PG 原模型过于陈旧，该文扩展了 PG 机器模型，纳入分页
+   虚拟内存、I/O 与中断（恰是 1974 年被省略的部分）。用新模型证明
+   ARMv7-A 不满足经典可虚拟化条件，并把动态二进制翻译形式化为对原定理
+   的"演化"。
+
+   对我们的意义：示范了如何把"内存映射、中断路由、I/O"补进形式化模型，
+   直接背书我们推导第 1 步"把 PG 的单一资源 R 补全为完整资源族"。
+
+   补充：硬件辅助虚拟化(VT-x/SVM)没有改变 PG 定理本身，而是改变了 x86
+   对定理的符合性——引入与传统 ring 正交的 root/non-root 模式，VM exit
+   充当定理所需的"陷入"，guest 可在 non-root ring0 原生运行未修改 OS。
+
+
+3. 把 VM/hypervisor 建模为状态转换系统的一支
+   （操作语义 + 精化/模拟关系，用于实现正确性验证）
+   代表工作：Alkassar/Paul 等 "Theory of Multi-Core Hypervisor Verification"
+   (HOL4)、"Toward the Verification of a Simple Hypervisor"、Arm 松内存下
+   的 Parfait。
+
+   借鉴价值：提供了 guest 状态、host 状态、trap-and-emulate 语义的可复用
+   形式化词汇表(内存映射、陷入语义、中断注入、上下文切换)，正是"接口契约"
+   可以引用的语义基元。
+
+
+线 A 小结（PG 能否作起点，缺口在哪）：
+   PG 框架可作推导起点，但只覆盖契约的一小块。它精确回答了 hypervisor
+   相对 CPU/ISA 需要什么——陷入敏感指令、维持内存重定位映射、保持等价与
+   资源控制。但其 1974 模型显式省略 I/O 与中断，且完全未涉及 OS 服务层
+   能力：内存分配与页表管理、物理 CPU 调度、中断/定时器路由、DMA/IOMMU、
+   以及向宿主 OS 借用的系统调用与设备访问。
+   => PG 足以刻画"虚拟化核心对硬件的需求"，不足以刻画"对宿主 OS 的需求"。
+   我们的契约应以 PG 的 trap-and-emulate + 资源映射为公理内核，再用
+   Penneman 的扩展模型补齐 OS 侧能力。
+
+
+----------------------------------------------------------------
+二、线 B：形式化 OS/hypervisor 接口与契约理论
+----------------------------------------------------------------
+
+这一族工作的共同范式是 refinement（精化）：证明具体实现只表现出抽象
+规约允许的行为子集(forward simulation)。
+
+1. seL4  (Klein et al., SOSP 2009)
+   《seL4: Formal Verification of an OS Kernel》
+   核心技术：Isabelle/HOL 中的 refinement 证明链，abstract spec ->
+   executable spec -> C 实现，精化步归约为 forward simulation。abstract
+   spec 用高层数据结构描述"每个系统调用做什么而非怎么做"，用非确定性把
+   实现自由度留给下层。
+   借鉴：abstract spec 就是"内核给上层的服务契约"的范本——正是我们要为
+   每个 OS 服务写的形式。对标我们的抽象规约 Spec。
+
+2. CertiKOS / mC2  (Gu et al., OSDI 2016)  ★与我们结构最同构
+   《CertiKOS: An Extensible Architecture for Building Certified
+    Concurrent OS Kernels》
+   核心技术：certified abstraction layers + contextual refinement。每层
+   (L1, M, L2) 证明"实现 M 建立在下层接口 L1(underlay)之上，是上层接口
+   L2(overlay)的 contextual refinement"。整个内核拆成 30+ 极小层。
+   借鉴：它显式把"模块依赖的下层接口 underlay"与"模块对上层提供的接口
+   overlay"分离建模——这恰是"hypervisor 依赖 OS 的服务(underlay) + 对
+   guest 的保证(overlay)"的双向接口。mC2 本身能当 hypervisor 跑多个
+   Linux guest。
+
+3. Hyperkernel  (Nelson et al., SOSP 2017)
+   《Hyperkernel: Push-Button Verification of an OS Kernel》
+   核心技术：push-button 验证。把内核接口设计为有限(trap handler 无无界
+   循环/递归)，用符号执行把实现对 spec 的一致性编码为 SMT(Z3)自动求解。
+   借鉴：把"接口有限化"作为让契约可自动检查的设计约束——若把 OS 服务
+   接口设计成有限调用集，契约验证可自动化。(未来机械化时参考)
+
+4. SeKVM / HypSec  (Li et al., IEEE S&P 2021)  ★最贴切工程先例
+   《A Secure and Formally Verified Linux KVM Hypervisor》
+   核心技术：microverification。把 KVM 拆成小可信核 KCore(EL2，做访问
+   控制与 VM 数据隔离) + 不可信服务 KServ(EL1，含 Linux host + 大部分
+   KVM)；用 transparent trace refinement 处理多核共享页表，仅对约 3800
+   行核心证明隔离性。
+   借鉴：KCore 把 KServ(即宿主 OS)当作"不可信、行为受契约约束"的下层，
+   正好对应我们要刻画的"hypervisor 对 OS 的最小依赖假设"。差异：它固定
+   Linux 做隔离性证明，我们参数化多 OS 做可移植性推导。
+
+
+契约/接口的形式化理论：
+
+5. Design by Contract  (Meyer, IEEE Computer 1992)
+   基于 Hoare 三元组：precondition(约束调用者=对环境假设) / postcondition
+   (约束被调用者=对上层保证) / invariant。子类型规则"弱化前置、强化后置"
+   即 Liskov 可替换性。
+   借鉴：为每个 OS 服务写 require/ensure 是最轻量的契约表达法。但偏顺序、
+   单调用，不直接刻画调用时序与并发干扰。
+
+6. Rely-Guarantee  (Jones, TOPLAS 1983)  ★契约语义主框架
+   《Tentative Steps Toward a Development Method for Interfering Programs》
+   用两个状态二元关系刻画组件：
+     rely  = 假设环境的每个原子步满足的关系
+     guarantee = 承诺自身每个原子步满足的关系
+   并行组合要求：各线程 guarantee 蕴含其他线程的 rely。
+   借鉴：这是"对所依赖平台的假设 + 对上层的保证"最直接的二元关系刻画，
+   且天生处理共享状态并发干扰——契合 hypervisor 与 OS 并发共享内存/页表/
+   中断状态的现实。并行组合条件"guarantee => 对方 rely"直接给出可移植性
+   判据。已有 Isabelle/HOL 形式化。
+
+7. Interface Automata  (de Alfaro & Henzinger, FSE 2001)
+   《Interface Automata》
+   用自动机同时刻画输入假设(方法被调用的合法顺序)与输出保证(组件调用
+   外部方法的顺序)，是一种"组件交互的类型系统"。兼容性检查是双人博弈，
+   精化用 alternating simulation，支持 compositional refinement。
+   借鉴：把契约提升到时序/协议层面(如 init 必须先于 vcpu_run)，这是
+   R-G 状态关系不直接表达的一层，作为契约的协议侧扩展。
+
+
+可移植性的形式化：
+   尚无一篇把"可移植性"命名为独立形式定理的经典论文，但其形式对应物
+   就是 refinement over a shared interface：可移植 = 核心逻辑在多个下层
+   接口实现下都精化同一抽象规约。CertiKOS 的 layered refinement 提供了
+   直接可用的机制。
+   对我们论点的直接支撑：把"同一虚拟化核心跑在 ArceOS/Asterinas/Linux"
+   形式化为"virtualization core C 在三个 OS 接口实现 I1,I2,I3 下都满足
+   C ⊑ AbstractSpec"，即"对同一 underlay 接口的三个 refinement"。
+
+
+线 B 小结（推荐的形式化基础）：
+   采用 rely-guarantee 为核心语义、interface automata 为协议层、
+   refinement 为可移植性判据 的组合。若必须选一套主框架，选
+   rely-guarantee。理由：hypervisor 与 OS 的耦合本质是并发共享状态下的
+   相互干扰(共享页表、中断、物理内存分配)，R-G 的两个状态关系恰好把
+   "hypervisor 对 OS 的假设(rely)"与"对 guest 的保证(guarantee)"编码为
+   可组合、可机械化的契约；并行组合条件"guarantee => 对方 rely"直接给出
+   "OS 实现只要满足该 guarantee 即可承载该核心"的可移植性判据。
+   SeKVM 的 KCore/KServ 拆分是最贴切的工程先例。
+
+
+================================================================
+第二部分  从第一性原理推导接口契约
+================================================================
+
+核心思路一句话：
+   不把 7 组接口当成工程直觉拍脑袋定的，而是从 PG 三性质出发，问一句：
+   "要让虚拟化核心对每一种资源维持这三性质，OS 至少必须提供哪些能力？"
+   —— 答案就自然掉出这 7 组接口。
+
+推导分四步：采公理 -> 识别资源 -> 推导能力 -> 契约化并证明。
+
+
+----------------------------------------------------------------
+第 0 步：采 PG 三性质为公理，并做关键"提升"
+----------------------------------------------------------------
+
+PG 三性质：
+   1. 等价性：guest 在 VM 内外行为一致
+   2. 资源控制：VMM 完全掌控被虚拟资源，可随时收回/重定向
+   3. 效率：绝大多数指令硬件直接执行，只有敏感操作陷入
+
+关键洞察（整个推导的支点）：
+   PG 只在一种狭窄资源上实例化了三性质——处理器状态(M 模式, P 程序
+   计数器) + 一个内存重定位寄存器 R=(l,b)，并且明确声明省略 I/O 和中断。
+   但三性质本身不是"CPU 独有"的，它对任何"把资源交给不受信任 guest
+   使用的中介"都成立。所以我们把三性质从"ISA 层的 R 寄存器"提升(lift)
+   到"OS 服务层的全部被虚拟资源"。
+
+     PG 原始:  三性质 作用在 { 处理器状态 M,P + 内存重定位 R }
+     提升后:   三性质 作用在 { 完整资源族 R1...R6 }   <- 下一步补全资源族
+
+
+----------------------------------------------------------------
+第 1 步：识别资源族（把单个 R 推广成资源族）
+----------------------------------------------------------------
+
+PG 只形式化了 2 类资源。虚拟化一个完整平台要中介的资源远不止这些。
+Penneman(2013) 已证明 PG 模型必须补入分页/中断/IO 才能刻画现代架构。
+据此补全为资源族：
+
+  资源                     PG 里的对应        说明
+  ---------------------    ---------------    ----------------------------
+  R1 物理内存与地址翻译     R=(l,b) 的推广      单寄存器重定位 -> stage-2 页表
+  R2 执行上下文            M, P 的推广         单核处理器状态 -> 多 vCPU
+  R3 中断                 (PG 省略!)          中断的接收、屏蔽、注入
+  R4 时间                 (PG 省略!)          定时器/时钟源
+  R5 设备 / MMIO          (PG 省略!)          内存映射 I/O、端口 I/O
+  R6 DMA 可见性           (PG 省略!)          设备对 guest 内存的访问范围
+
+  说明：R3-R6 正是 PG 显式排除的部分，也正是"为什么 PG 定理不足以刻画
+  hypervisor 对 OS 的依赖"的根源——现代虚拟化的资源控制责任大量落在
+  中断和 I/O 上。
+
+
+----------------------------------------------------------------
+第 2 步：能力推导（接口真正被"推"出来的地方）
+----------------------------------------------------------------
+
+对每个资源 Ri，问同一个问题：
+   要让核心对 Ri 维持"资源控制 + 等价性"，核心必须能原子地施加哪些操作？
+而核心自己跑在 OS 之上、不拥有底层特权资源，所以这些操作必须由 OS 通过
+契约提供。
+
+先把"资源控制"写成一个可判定的不变式：
+   资源控制不变式 RC-Inv(Ri)：guest 对 Ri 的任何操作，其可观测效果都落在
+   核心当前授权的范围内，且核心能在任意时刻收回或重定向该授权。
+
+
+范例（完整展开）：R1 内存怎么推出 4 个操作
+
+命题：维持 RC-Inv(R1) 与等价性，当且仅当核心可经契约施加这 4 个操作：
+   alloc_phys, map_stage2, unmap_stage2, flush_tlb
+
+充分性（这 4 个够用）：
+   - alloc_phys 取得核心有权支配的物理帧；
+   - map_stage2 为 guest 建立 GPA->HPA 映射(含权限) => guest 每次访存都被
+     stage-2 约束在授权范围内 => RC-Inv 成立；guest 看到连续 guest-physical
+     空间，与真实硬件无异 => 等价性成立；
+   - 收回授权时 unmap_stage2 + flush_tlb 保证旧映射不再可用。
+
+必要性（一个都不能少，逐个反证）：
+   去掉 map_stage2   => 核心无法建立任何 GPA->HPA 授权，guest 要么没内存
+                        (违反等价)，要么直接碰 host 物理内存(违反资源控制)
+   去掉 unmap_stage2 => 授权建立后不可收回，存在"guest 释放后仍可访问"的
+                        执行(违反资源控制)
+   去掉 flush_tlb    => unmap 对硬件 TLB 不生效，一条访存经陈旧 TLB 命中
+                        已撤销映射(违反资源控制)
+   去掉 alloc_phys   => 核心拿不到"自己有权支配"的帧，map 的源帧所有权
+                        未定(违反资源控制)
+
+   所以 R1 的最小充分能力集 = {alloc_phys, map_stage2, unmap_stage2,
+   flush_tlb}。是推出来的，不是拍的。
+
+
+其余资源同法推导，结果汇总：
+
+  资源          维持三性质所需最小能力                推出的契约操作
+  -----------   --------------------------------      ------------------------
+  R1 内存       建立/撤销/使失效 GPA->HPA 授权         alloc_phys, map_stage2,
+                                                      unmap_stage2, flush_tlb
+  R2 vCPU       创建执行上下文、进入降权 guest 直至    vcpu_create, vcpu_run,
+                陷入、读写寄存器、销毁                vcpu_get/set_regs,
+                                                      vcpu_destroy
+  R3 中断       绑定物理中断到核心回调、向 vCPU        irq_register,
+                注入虚拟中断、EOI                     irq_inject, irq_eoi
+  R4 时间       装备定时器以夺回控制(调度配额/看门狗)  timer_arm
+  R5 设备/MMIO  物理 MMIO 读写、注册 guest MMIO        mmio_read/write,
+                陷入回调                              register_mmio_handler
+  R6 DMA        约束设备对 guest 内存的可见性          iommu_map/unmap,
+                (可选，取决于 IOMMU)                  iommu_attach_device
+
+再加两类非资源型能力，从"核心需被启动并被观测"这个元需求推出：
+  生命周期：init, query_platform
+  日志：    log
+
+
+关键推论（7 组接口的必然性）：
+   R1-R6(6 组) + 生命周期/日志(1 组) = 正好 7 个服务组，就是论文 Table I。
+   7 组不是设计选择，而是"PG 三性质 × 完整资源族"的推导结果。
+
+一个特别贴合的对应：
+   PG 的 trap-and-emulate 要求"敏感操作陷入 VMM"。在 OS 服务层，这个
+   "陷入并回到核心"的语义正是 vcpu_run 的规约——它必须阻塞直至 guest
+   陷入，把控制交还核心。这是 PG 公理在契约里的直接落点。
+
+
+----------------------------------------------------------------
+第 3 步：用 Rely-Guarantee 把契约形式化
+----------------------------------------------------------------
+
+用 Rely-Guarantee 的两关系语义：
+   Rely(假设)：一个组件假设环境每个原子步满足的关系
+   Guarantee(保证)：一个组件承诺自身每个原子步满足的关系
+
+三个角色：Core(可移植核心)、OS(底座+适配层)、Guest。
+
+契约 C 定义为：
+   - 每个操作 op 配一个前置/后置规约(Design-by-Contract 风格)。例：
+     post(map_stage2(gpa,hpa,perm)) = "此后 guest 对 gpa 的访问以权限 perm
+     落到 hpa，直到对应 unmap"。
+   - G_OS (OS 的保证)：OS 承诺它每一步要么是某个 op 的正确实现，要么不
+     擅动核心授权范围内的 guest 内存/vCPU 状态。
+   - R_core (核心的假设)：直接令 R_core := G_OS。即"核心假设 OS 的每一步
+     都符合 OS 的保证"。
+   - G_core (核心的保证)：核心每一步维持三性质的提升版(所有 RC-Inv 保持
+     + guest 行为等价)。
+
+   契约的本质 = 一对关系 (R_core, G_core)，其中 R_core = G_OS。
+   （KVM 兼容 ABI 是核心对 guest 的保证的一个投影，方向相反，此处不展开。）
+
+
+----------------------------------------------------------------
+第 4 步：三个可证明命题（把论点升格为定理）
+----------------------------------------------------------------
+
+定理 1 —— 契约充分性 (Soundness)
+   若某 OS 适配层满足 G_OS，则核心在其上维持 PG 三性质(即 G_core 成立)。
+
+   证明骨架：核心的正确性是在"环境步满足 R_core"下用 R-G 推理证的。因
+   R_core := G_OS，只要 OS 满足 G_OS，核心证明里每个环境假设都被兑现；
+   对核心每类动作归约到对应 RC-Inv(i)，vcpu_run 的"陷入即返回"规约保证
+   敏感操作不被 guest 私自完成(对应 PG 的 S ⊆ P)，逐类归纳 => G_core 在
+   所有可达状态保持。
+
+
+定理 2 —— 契约最小性 (Minimality)
+   每个操作都不可去掉：去掉任一个，都存在一条 guest 执行破坏 RC-Inv 或
+   等价性。因此 Ops 中无冗余操作。
+
+   证明骨架：第 2 步已对 R1 的 4 个操作各给一条反例；R2-R5 同法(如去
+   irq_inject => 依赖中断唤醒的 guest 永久阻塞，违反等价；去 timer_arm
+   => 无法从死循环 guest 夺回 CPU，违反资源控制；去 register_mmio_handler
+   => guest 对模拟设备 MMIO 要么直通真实设备(违反资源控制)要么无响应
+   (违反等价))。R6 是可选组，缺失只收缩特性集(passthrough)不破坏核心
+   不变式——这本身印证它不在"必需"闭包内。
+   注：最小性是相对"维持 PG 三性质"这一目标的最小，不是绝对最小 API。
+   热迁移、快照、CPU 亲和是三性质之上的额外性质，其操作不在此闭包内——
+   这正解释了 Discussion 中"契约充分但不完备"的表述。
+
+
+定理 3 —— 底座可移植性 (Portability)   ★论文核心论点的形式表述
+   设核心已证明为抽象规约的精化 Core ⊑ Spec，且该证明只依赖 R_core。则
+   对任意两个满足 G_OS 的底座实现 I1、I2(如 ArceOS、Asterinas、Linux)，
+   Core ⊑ Spec 在二者下同时成立，guest 行为不变。
+
+   证明骨架：由 R-G 并行组合规则，Core || Ij 要求 G_Ij => R_core 且
+   G_core => R_Ij。前者即"Ij 满足 G_OS"(前提)，后者由 G_core 定义与
+   OS 适配层只依赖核心不擅动 guest 状态给出。因核心的精化证明只引用
+   R_core、不引用任何 Ij 的私有状态，该证明对 I1、I2 是参数化的——换
+   实现不改证明任何一步。故 Core ⊑ Spec 在两实现下同为定理。Guest 可
+   观测行为由 G_core 的等价不变式固定，与 j 无关。
+
+   意义：substrate-OS 可移植性 = "核心对同一抽象规约的精化，在多个满足
+   契约保证的 OS 实现下参数化地成立"。它把"同一核心跑在三 OS 上"从工程
+   观察升格为可证明命题。
+
+
+----------------------------------------------------------------
+推导链一图流（纯文本）
+----------------------------------------------------------------
+
+   PG 三性质 (等价 / 资源控制 / 效率)
+        |
+        |  (1) 提升：从 ISA 层 R 寄存器 -> OS 服务层
+        v
+   完整资源族  R1内存  R2vCPU  R3中断  R4时间  R5设备  R6DMA
+        |
+        |  (2) 对每个 Ri 求"维持 RC-Inv 的最小操作闭包"(充分 + 必要反证)
+        v
+   7 组接口操作   <- 就是 Table I，推导结果而非设计选择
+        |
+        |  (3) 用 Rely-Guarantee 包装：R_core := G_OS
+        v
+   形式契约 C = (R_core, G_core)
+        |
+        |  (4) 证明
+        v
+   定理1 充分性    定理2 最小性    定理3 可移植性(核心论点)
+
+
+================================================================
+第三部分  推导逻辑 ↔ 论文对照表
+================================================================
+
+推导步骤          靠哪篇论文站住                        读它确认什么
+--------------    ----------------------------------    ------------------------
+第0步 采公理      Popek & Goldberg 1974                 三性质定义、S⊆P、
+                                                        trap-and-emulate
+第1步 补资源族    Penneman et al. 2013                  PG 必须补分页/中断/IO
+第2步 推能力集    我们原创(最小性反证)                   判断反例是否真的成立
+                  方法论: de Alfaro-Henzinger 2001      接口的输入假设/输出保证
+                        + Meyer 1992                     pre/post 规约写法
+第3步 契约化      Jones 1983 (Rely-Guarantee)          rely/guarantee 定义、
+                                                        并行组合规则 G=>R
+第4步 证三定理    Gu et al. 2016 (CertiKOS, 结构同构)   underlay/overlay 双接口
+                  Li et al. 2021 (SeKVM, 工程先例)      KCore/KServ 拆分
+                  Klein et al. 2009 (seL4, 精化范本)    abstract spec + forward
+                                                        simulation
+
+
+阅读优先级建议：
+
+  必读（推导成立与否取决于这几篇）：
+    1. Popek & Goldberg 1974   —— 三性质原始定义(第0步公理)
+    2. Jones 1983              —— Rely-Guarantee 与并行组合规则(第3、4步)
+    3. Penneman et al. 2013    —— 资源族补全的背书(第1步)
+
+  强烈建议读（决定定理3的表述质量）：
+    4. Gu et al. 2016 CertiKOS —— underlay/overlay 双接口，与我们结构同构
+    5. Li et al. 2021 SeKVM    —— KCore/KServ，最贴切工程先例
+
+  选读（证明形态 / 未来机械化）：
+    6. Klein et al. 2009 seL4  —— refinement 范本
+    7. de Alfaro-Henzinger 2001 —— 接口协议层
+    8. Meyer 1992              —— pre/post 写法
+    9. Nelson et al. 2017 Hyperkernel —— 接口有限化(自动验证)
+
+
+================================================================
+第四部分  参考文献清单（含 PDF 链接）
+================================================================
+
+[PG74]  G. J. Popek, R. P. Goldberg. Formal Requirements for Virtualizable
+        Third Generation Architectures. CACM 17(7):412-421, 1974.
+        https://dl.acm.org/doi/10.1145/361011.361073
+        (备用 PDF) https://www.princeton.edu/~rblee/ELE572Papers/Fall04Readings/secureOS/popek_virtualizable.pdf
+
+[Pen13] N. Penneman, D. Kudinskas, A. Rawsthorne, B. De Sutter, K. De Bosschere.
+        Formal Virtualization Requirements for the ARM Architecture.
+        Journal of Systems Architecture 59(3):144-154, 2013.
+        https://dl.acm.org/doi/10.1016/j.sysarc.2013.02.003
+
+[Jones83] C. B. Jones. Tentative Steps Toward a Development Method for
+        Interfering Programs. ACM TOPLAS 5(4):596-619, 1983.
+
+[Meyer92] B. Meyer. Applying "Design by Contract". IEEE Computer 25(10):40-51,
+        1992.
+
+[dAH01] L. de Alfaro, T. A. Henzinger. Interface Automata. ESEC/FSE 2001,
+        pp.109-120.
+
+[seL4]  G. Klein et al. seL4: Formal Verification of an OS Kernel. SOSP 2009,
+        pp.207-220.
+        https://cacm.acm.org/research/sel4-formal-verification-of-an-operating-system-kernel/
+
+[CertiKOS] R. Gu et al. CertiKOS: An Extensible Architecture for Building
+        Certified Concurrent OS Kernels. OSDI 2016, pp.653-669.
+        https://www.usenix.org/conference/osdi16/technical-sessions/presentation/gu
+
+[Hyperkernel] L. Nelson et al. Hyperkernel: Push-Button Verification of an OS
+        Kernel. SOSP 2017, pp.252-269.
+        https://unsat.cs.washington.edu/papers/nelson-hyperkernel.pdf
+
+[SeKVM] S.-W. Li et al. A Secure and Formally Verified Linux KVM Hypervisor.
+        IEEE S&P 2021, pp.1782-1799.
+        https://www.cs.columbia.edu/~nieh/pubs/ieeesp2021_kvm.pdf
+
+（以上文献已全部登记在 paper/references.bib 中，bib 键名分别为：
+  popek1974formal, penneman2013formal, jones1983tentative, meyer1992contract,
+  dealfaro2001interface, klein2009sel4, gu2016certikos, nelson2017hyperkernel,
+  li2021sekvm）
+
+================================================================
+（全文完）
+================================================================

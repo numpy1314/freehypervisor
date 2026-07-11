@@ -440,8 +440,9 @@ if cpu_num < 1:
 
 if phys_cpu_ids_raw == "auto":
     if cpu_num == 1:
-        # Preserve the historical single-vCPU config value.
-        phys_cpu_ids = [1]
+        # A single x86 guest must expose APIC ID 0, otherwise Linux may infer
+        # a sparse topology and wait for a non-existent AP.
+        phys_cpu_ids = [0]
     else:
         phys_cpu_ids = list(range(cpu_num))
 else:
@@ -694,6 +695,9 @@ launch_qemu() {
 
     host_append="console=ttyS0 earlyprintk=serial panic=-1 oops=panic nokaslr rcu_cpu_stall_suppress=1 nmi_watchdog=0 nowatchdog"
     host_append="$host_append memmap=${X86_GUEST_IDENTITY_RAM_SIZE}\$${X86_GUEST_IDENTITY_RAM_BASE}"
+    if [[ -n "${HOST_APPEND_EXTRA:-}" ]]; then
+        host_append="$host_append $HOST_APPEND_EXTRA"
+    fi
 
     echo "[verify] launch qemu accel=$QEMU_ACCEL cpu=$cpu_arg"
     echo "[verify] host append: $host_append"

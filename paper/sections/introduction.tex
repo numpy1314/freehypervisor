@@ -1,0 +1,121 @@
+\section{Background and Motivation}
+
+\subsection{Hypervisor--OS Coupling as an Architecture Problem}
+
+A hypervisor mediates between hardware and one or more guest virtual machines
+(VMs), but it cannot do so in isolation: it requires a substrate to allocate
+memory, manage execution contexts, route interrupts, access devices, and
+coordinate initialization. How this substrate is provided varies widely across
+designs, yet in nearly every case the hypervisor is architecturally fused to a
+particular substrate choice. This fusion is not accidental---it reflects design
+decisions about where to draw the boundary between virtualization logic and OS
+services---but it has consequences that are familiar to software engineering:
+high coupling, low portability, and duplicated effort whenever the
+virtualization layer must be retargeted.
+
+KVM is the canonical example of full integration. The Kernel-based Virtual
+Machine is not a standalone program but a Linux subsystem that exposes
+virtualization through a \code{/dev/kvm} character device and a set of
+ioctls~\cite{kivity2007kvm}. Its vCPU scheduling, memory management, interrupt
+routing, and device handling are inseparable from the Linux kernel, which gives
+KVM access to Linux's mature drivers and scheduler but makes it unthinkable
+outside Linux. Firecracker, the lightweight VMM behind AWS Lambda, is built atop
+KVM and therefore transitively inherits the same substrate
+dependency~\cite{agache2020firecracker}. At the other extreme,
+static-partitioning hypervisors such as Bao~\cite{martins2020bao} and
+Jailhouse~\cite{ramsauer2017jailhouse} run with a much smaller trusted computing
+base, but they are no less bound to their substrate: Jailhouse relies on a
+booted Linux instance to initialize hardware and then partitions it, while Bao
+assumes a bare-metal boot and memory model. ACRN targets IoT consolidation and
+supports a service-VM model that is itself tightly coupled to a specific guest
+configuration~\cite{li2019acrn}. Even research efforts that rethink the
+hypervisor--kernel boundary, such as DuVisor's user-level hypervisor via
+delegated virtualization~\cite{chen2022duvisor} or the Out-of-Hypervisor
+approach to nested virtualization~\cite{bitchebe2022ooh}, relocate the coupling
+rather than eliminate it: each still presupposes a particular substrate
+architecture.
+
+The practical consequence is that virtualization support is not a portable
+capability but a per-OS investment. When a new OS---a Rust-based kernel such as
+Asterinas~\cite{peng2025asterinas, peng2024framekernel}, a unikernel-style base
+such as ArceOS, or an experimental research kernel---wishes to host VMs, it must
+either reimplement a hypervisor, port an existing one by invasive surgery on
+both sides, or do without virtualization entirely. The literature on
+safety-critical and embedded virtualization confirms this fragmentation:
+comparative studies of Jailhouse, Xen Dom0-less, Bao, and seL4 CAmkES treat each
+hypervisor as an independent system whose internal coupling to its substrate is
+a given, not a variable~\cite{martins2020bao, lozano2023comprehensive}. None of
+these systems asks whether the \emph{same} virtualization core could be reused
+across substrates.
+
+\subsection{Two Dimensions of Decoupling}
+
+Portability in virtualization is usually discussed along two axes. The first is
+\emph{guest portability}: a hypervisor should run different guest operating
+systems. The second is \emph{hardware portability}: a hypervisor should span
+instruction-set architectures and platform configurations, as evidenced by work
+on Arm and RISC-V virtualization~\cite{sa2023cva6}. Both axes have received
+extensive attention. A third axis, however, is largely missing:
+\emph{substrate-OS portability}, i.e., whether the hypervisor itself can be
+reused across different host operating systems that provide its substrate
+services.
+
+We further observe that substrate-OS portability has two independent sides, and
+a complete decoupling story must address both. The \emph{substrate-facing side}
+concerns how the hypervisor obtains OS services below it: memory, CPUs,
+interrupts, timers, devices, and synchronization. The \emph{guest-facing side}
+concerns how guests and their toolchains interact with the hypervisor above it.
+On the guest side, the KVM ioctl ABI has become a de facto standard: a large
+ecosystem of VMMs, device backends, and guest drivers assumes a KVM-compatible
+interface. If a portable hypervisor exposes this ABI, then unmodified guests and
+toolchains work regardless of which substrate hosts the hypervisor. Decoupling
+only the substrate side while ignoring the guest side would still force guests
+to be rewritten per hypervisor; decoupling only the guest side would still force
+the hypervisor to be rewritten per OS. Our work targets both sides
+simultaneously.
+
+\subsection{A Software-Engineering Perspective}
+
+From a software-architecture standpoint, the hypervisor--OS boundary is an
+instance of a classic problem: separating a reusable component from the platform
+services it consumes through an explicit, minimal contract. Abstraction and
+modularity are foundational principles for managing complexity, enabling reuse,
+and bounding the impact of change~\cite{shaw2025abstractions, wan2023software}.
+In practice, however, ``portability'' is frequently an aspiration rather than a
+verified property, and abstraction boundaries that look clean on paper often
+leak platform-specific semantics under stress~\cite{mince2023illusion}. This
+tension is acute for hypervisors because the services they need---physical
+memory ownership, interrupt-context execution, address-translation control---are
+precisely the services where OS designs diverge most.
+
+This makes the hypervisor--OS interface a demanding contract to design. It is
+not a hardware abstraction layer that hides device registers; it is a service
+contract that must expose enough low-level control for virtualization while
+hiding the accidental structure of each substrate. If the contract is too
+narrow, the hypervisor cannot map guest memory, inject interrupts, or drive
+devices. If it mirrors one OS's abstractions too closely, portability
+evaporates. If it papers over semantic differences, the same hypervisor code may
+appear portable while silently relying on assumptions that hold on only one
+substrate. A useful contract must therefore be small, explicit, and faithful to
+the semantics that virtualization actually requires. Our central claim is that
+such a contract exists, is feasible to implement, and that the cost it imposes
+is modest relative to re-implementing a hypervisor per OS.
+
+\subsection{Why Now: Emerging Substrates}
+
+The motivation for tackling substrate-OS portability now is concrete. A new
+generation of OSes is being built in memory-safe languages and with
+non-traditional architectures: Asterinas adopts a framekernel design with a
+small, sound trusted computing base while preserving Linux ABI
+compatibility~\cite{peng2025asterinas, peng2024framekernel}; library-OS and
+unikernel approaches such as Unikraft~\cite{kuenzer2021unikraft} and
+LibrettOS~\cite{nikolaev2020librettos} demonstrate that OS construction can be
+decomposed into reusable primitives; and unikernel isolation continues to be
+explored for edge and embedded targets~\cite{kaiser2024unikernels,
+ueda2024mewz}. Each of these substrates could benefit from
+virtualization---for compatibility, testing, isolation, or cloud-native
+execution---but none should have to absorb the cost of building a hypervisor
+from scratch. If the hypervisor can be treated as a portable component that
+consumes a defined service contract, then emerging OSes gain virtualization by
+implementing a thin adaptation layer rather than a full virtualization stack.
+This is the gap our work fills.

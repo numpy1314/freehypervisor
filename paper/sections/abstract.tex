@@ -1,0 +1,26 @@
+\begin{abstract}
+Hypervisors are traditionally inseparable from a particular host operating
+system (OS) or bare-metal environment: KVM is woven into Linux,
+static-partitioning hypervisors such as Bao and Jailhouse assume specific boot
+and device-management models, and even research designs like DuVisor bind the
+virtualization layer to a single kernel substrate. This coupling forces every
+new or emerging OS that needs virtualization to either reimplement a hypervisor
+from scratch or deeply restructure its kernel, which fragments engineering
+effort and impedes reuse of mature virtualization logic. We argue that this
+coupling is a software-architecture problem rather than a fundamental
+virtualization requirement: a hypervisor depends on its substrate OS through a
+small but semantically rich set of services. We present \axvisor{}, a hypervisor
+restructured around an explicit \emph{substrate interface contract} that
+decouples the virtualization core from OS-specific services. The same
+\axvisor{} core then runs on three substantially different
+substrates---\arceos{}, \asterinas{}, and Linux---each contributing only a thin
+adaptation layer. To decouple the guest-facing side, \axvisor{} additionally
+exposes a KVM-compatible ABI, allowing unmodified guests and toolchains built
+for the de facto KVM interface to run on top of any substrate. We evaluate the
+design by booting a bare-metal Linux guest on both the \asterinas{} and Linux
+substrates, quantifying portability cost through interface size and code-reuse
+metrics, and measuring virtualization overhead. Our results show that
+substrate-OS portability is achievable with a narrow contract and modest
+per-substrate adaptation, turning the hypervisor from an OS-specific subsystem
+into a reusable, retargetable virtualization component.
+\end{abstract}

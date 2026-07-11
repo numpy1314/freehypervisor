@@ -1,0 +1,53 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+% ---- Packages ----
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{url}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+% ---- Convenience macros ----
+\newcommand{\axvisor}{\textsc{AxVisor}}
+\newcommand{\arceos}{\textsc{ArceOS}}
+\newcommand{\asterinas}{\textsc{Asterinas}}
+\newcommand{\code}[1]{\texttt{#1}}
+% Placeholder marker for values to be filled from the measurement campaign.
+\newcommand{\fillme}[1]{{\color{red}\textbf{[#1]}}}
+
+\begin{document}
+
+\title{Decoupling Hypervisors from Substrate Operating Systems:\\
+An Interface-Contract Approach to OS-Portable Virtualization}
+
+\author{\IEEEauthorblockN{Anonymous Authors}
+\IEEEauthorblockA{Submission under double-blind review}}
+
+\maketitle
+
+\input{sections/abstract}
+
+\begin{IEEEkeywords}
+virtualization, hypervisor portability, software architecture,
+interface decoupling, KVM ABI, operating systems
+\end{IEEEkeywords}
+
+\input{sections/introduction}
+\input{sections/design}
+\input{sections/implementation}
+\input{sections/evaluation}
+\input{sections/related_work}
+\input{sections/discussion}
+\input{sections/conclusion}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

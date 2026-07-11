@@ -1,0 +1,225 @@
+\section{Design}
+
+This section presents the architecture of \axvisor{} as an OS-portable
+hypervisor. We first state the design goals and the principles that govern the
+substrate contract (\S\ref{sec:design-goals}). We then describe the overall
+architecture (\S\ref{sec:arch-overview}), the substrate interface contract in
+detail (\S\ref{sec:contract}), and the guest-facing KVM-compatible ABI that
+completes the decoupling (\S\ref{sec:kvm-abi}).
+
+\subsection{Design Goals and Principles}
+\label{sec:design-goals}
+
+\axvisor{} is guided by four goals, each grounded in the coupling problem
+identified in Section~\ref{sec:design-goals}.
+
+\paragraph{G1. Substrate-OS portability}
+The same hypervisor core must run on substrates that differ in kernel
+architecture, memory model, scheduling model, and device infrastructure.
+Portability is measured by how little substrate-specific code is required, not
+merely by the fact that the system can be made to compile on each target.
+
+\paragraph{G2. Minimal, faithful contract}
+The dependency of the hypervisor core on its substrate must be expressed as a
+narrow, explicit interface. The interface must expose services at the
+granularity virtualization requires---physical memory, execution contexts,
+interrupts---rather than at the granularity a particular OS happens to offer. It
+must not hide semantic differences that affect correctness.
+
+\paragraph{G3. Guest-side neutrality}
+Guests and their toolchains must not be coupled to the substrate choice. By
+exposing a KVM-compatible ABI, \axvisor{} lets unmodified guests and existing
+VMMs run on top of any substrate that implements the contract.
+
+\paragraph{G4. Bounded adaptation cost}
+Implementing the contract on a new substrate should require proportionally less
+effort than writing a hypervisor from scratch. The adaptation layer, not the
+core, should absorb substrate idiosyncrasies.
+
+Three principles follow. First, \emph{separation of virtualization logic from OS
+services}: anything that is genuinely about virtualization---vCPU state, guest
+memory bookkeeping, trap dispatch, virtual device mediation---stays in the core;
+anything that is about obtaining a resource or invoking a platform policy lives
+behind the contract. Second, \emph{explicit over implicit}: where substrates
+differ in semantics, the contract surfaces the difference rather than silently
+normalizing it, so that adaptation layers make conscious choices. Third,
+\emph{contract by capability}: a substrate is eligible to host \axvisor{} if and
+only if it can provide the contract's required capabilities; optional
+capabilities may be absent without breaking the core, but they bound the
+hypervisor's feature set on that substrate.
+
+\subsection{Architecture Overview}
+\label{sec:arch-overview}
+
+\axvisor{} is structured into three layers, shown in Figure~\ref{fig:arch}. At
+the top, one or more guest VMs interact with the hypervisor through the
+KVM-compatible ABI. In the middle, the portable hypervisor core implements all
+virtualization logic that is independent of any substrate: vCPU lifecycle and
+state machine, stage-2/EPT guest memory management, trap and exception dispatch,
+hypercall handling, virtual device models, and VM lifecycle. At the bottom, a
+substrate adaptation layer implements the substrate interface contract for a
+specific OS. The core calls only into the contract; the adaptation layer calls
+into the substrate's native APIs.
+
+\begin{figure}[t]
+  \centering
+  \framebox[0.95\columnwidth]{\parbox{0.9\columnwidth}{\centering
+    \vspace{0.5em}
+    Guest VMs\\ $\updownarrow$\\ KVM ABI\\ $\updownarrow$\\
+    Portable Core\\ $\updownarrow$\\ Substrate Interface Contract\\ $\updownarrow$\\
+    \{\arceos{}, \asterinas{}, Linux\} adaptation layers\\ $\updownarrow$\\
+    Hardware
+    \vspace{0.5em}}}
+  \caption{The \axvisor{} architecture. The portable core depends only on the
+  substrate interface contract; each adaptation layer implements the contract
+  for one OS. Guests interact through a KVM-compatible ABI, decoupling them from
+  the substrate choice.}
+  \label{fig:arch}
+\end{figure}
+
+This layering converts the substrate OS from an implicit, ambient dependency
+into an explicit service provider. The boundary between core and adaptation
+layer is the single seam along which portability is won or lost; everything
+above it is shared, everything below it is substrate-specific. Crucially, the
+KVM-compatible ABI provides a second, independent seam on the guest side, so
+that guests and substrates can vary independently of each other.
+
+\subsection{The Substrate Interface Contract}
+\label{sec:contract}
+
+The contract is the heart of the design. We define it as a set of service
+groups, each containing a small number of operations. The contract is
+deliberately not a POSIX-like API: hypervisors need capabilities that
+general-purpose application interfaces neither expose nor guarantee, such as
+allocating contiguous physical memory, installing stage-2 mappings, creating
+privileged execution contexts, and registering direct interrupt handlers. We
+therefore call these \emph{hypervisor-grade services}.
+
+\paragraph{Memory management}
+The core must allocate physical memory regions of defined size and contiguity,
+map guest physical addresses to host physical frames in the stage-2 page table,
+and manage ownership and lifetime of frames handed to guests. The contract
+exposes: \code{alloc\_phys} (contiguous or discontiguous physical frames),
+\code{map\_stage2} (install a guest-physical to host-physical mapping with
+permissions), \code{unmap\_stage2}, and \code{flush\_tlb}. Semantic pressure
+here is high: substrates differ in whether they expose physical frame numbers
+directly, whether they permit fine-grained stage-2 control, and how they handle
+cache coherence and DMA ownership. The contract requires the substrate to
+provide physical addresses and stage-2 control; if a substrate abstracts these
+away, its adaptation layer must recover them.
+
+\paragraph{CPU and vCPU execution}
+The core creates vCPUs as execution contexts and drives them through
+run/pause/halt cycles, reading and writing guest register state. The contract
+exposes: \code{vcpu\_create}, \code{vcpu\_run} (enter the guest until a trap),
+\code{vcpu\_get\_regs}/\code{vcpu\_set\_regs}, and \code{vcpu\_destroy}. The
+substrate must provide a way to enter a hardware virtualization mode (e.g., EL2
+on Arm, VMX root on x86) and to surface traps back to the core. How the
+substrate schedules the host thread that backs a vCPU is a substrate policy; the
+contract only requires that \code{vcpu\_run} blocks until the guest traps.
+
+\paragraph{Interrupts and timers}
+The core must inject virtual interrupts into guests, receive physical interrupts
+that target assigned devices, and arm timers for scheduling quantum and watchdog
+purposes. The contract exposes: \code{irq\_register} (bind a physical interrupt
+to a core handler), \code{irq\_inject} (deliver a virtual interrupt to a vCPU),
+\code{irq\_eoi} (end-of-interrupt), and \code{timer\_arm}. Interrupt handling is
+among the most semantically divergent areas: substrates differ in
+interrupt-controller models, in whether handlers run in interrupt context or
+deferred context, and in how interrupt affinity is configured. The contract
+requires the substrate to deliver a physical interrupt to a core-registered
+callback and to honor injection requests; the adaptation layer reconciles
+controller specifics.
+
+\paragraph{Synchronization}
+The core uses locks and barriers to protect shared data structures across vCPUs
+and interrupt handlers. The contract exposes spinlocks and a minimal
+memory-barrier facility. Because some substrates disable preemption or run with
+interrupts masked in core paths, the contract requires that spinlocks be usable
+in interrupt context and that they provide ordering compatible with the target
+ISA's memory model.
+
+\paragraph{Device and MMIO access}
+The core accesses assigned devices via MMIO and mediates emulated devices for
+guests. The contract exposes: \code{mmio\_read}/\code{mmio\_write} (physical
+MMIO access), \code{io\_port} (x86 I/O space, where applicable), and
+\code{register\_mmio\_handler} (install a core handler for a guest MMIO region
+that triggers on guest access). For passthrough, the substrate must permit
+direct device assignment; for emulation, the substrate must trap guest MMIO
+faults and forward them.
+
+\paragraph{DMA and IOMMU}
+For device passthrough and shared-memory communication, the core must program
+IOMMU mappings so that assigned devices can access guest memory safely. The
+contract exposes: \code{iommu\_map}/\code{iommu\_unmap} and
+\code{iommu\_attach\_device}. Where a substrate lacks an IOMMU or does not
+expose it, this capability is optional and passthrough is constrained
+accordingly; the core degrades gracefully rather than failing.
+
+\paragraph{Lifecycle and logging}
+The contract provides initialization entry points, a way to query the
+platform's CPU/memory layout at boot, and logging primitives. These are
+necessary but low-risk; their main purpose is to give the adaptation layer a
+defined place to hand control to the core.
+
+Table~\ref{tab:contract} summarizes the contract. The key property is that every
+operation is expressed in terms of what virtualization needs, not how a
+particular OS provides it. A substrate that can supply these
+capabilities---regardless of whether it is a unikernel, a monolithic kernel, or
+a framekernel---is eligible to host the core.
+
+\begin{table}[t]
+  \centering
+  \caption{Substrate interface contract: service groups and representative
+  operations.}
+  \label{tab:contract}
+  \begin{tabular}{@{}p{2.4cm}p{5.0cm}@{}}
+    \toprule
+    \textbf{Service group} & \textbf{Representative operations} \\
+    \midrule
+    Memory & \code{alloc\_phys}, \code{map\_stage2}, \code{unmap\_stage2},
+      \code{flush\_tlb} \\
+    CPU/vCPU & \code{vcpu\_create}, \code{vcpu\_run},
+      \code{vcpu\_get/set\_regs}, \code{vcpu\_destroy} \\
+    Interrupt/timer & \code{irq\_register}, \code{irq\_inject},
+      \code{irq\_eoi}, \code{timer\_arm} \\
+    Synchronization & \code{spinlock}, memory barriers \\
+    Device/MMIO & \code{mmio\_read/write}, \code{register\_mmio\_handler} \\
+    DMA/IOMMU & \code{iommu\_map/unmap}, \code{iommu\_attach\_device}
+      (optional) \\
+    Lifecycle & \code{init}, \code{query\_platform}, \code{log} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{KVM-Compatible ABI}
+\label{sec:kvm-abi}
+
+Decoupling the substrate side is necessary but not sufficient: if guests and
+VMMs had to be rewritten for each substrate, portability would be hollow.
+\axvisor{} therefore exposes a KVM-compatible ABI on the guest-facing side. The
+KVM ioctl interface---operations such as \code{KVM\_CREATE\_VM},
+\code{KVM\_CREATE\_VCPU}, \code{KVM\_RUN}, and the memory-slot and irqchip
+families---has become the de facto standard for VM
+management~\cite{kivity2007kvm}. A large body of guest drivers, virtio backends,
+and management toolchains assume it.
+
+\axvisor{} implements a KVM-ABI shim inside the portable core. The shim
+translates standard KVM ioctls into internal core operations that are themselves
+substrate-independent. When a VMM issues \code{KVM\_CREATE\_VCPU}, the core
+invokes \code{vcpu\_create} on the contract; when it issues \code{KVM\_RUN}, the
+core invokes \code{vcpu\_run}. Because both the ioctl surface and the core logic
+are substrate-neutral, the same guest and the same VMM run on top of \arceos{},
+\asterinas{}, or Linux without modification. The KVM ABI thus acts as the
+guest-side counterpart to the substrate contract: just as the contract decouples
+the core from the OS below, the ABI decouples guests from the substrate choice
+below the core.
+
+There is a deliberate asymmetry worth making explicit. On the substrate side,
+the contract is a \emph{provider} interface: each OS implements it. On the guest
+side, the KVM ABI is a \emph{consumer} interface: the core implements it for
+guests to consume. The portable core sits between two contracts, neither of
+which references a specific OS. This double decoupling is what allows the matrix
+of guests $\times$ substrates to be supported without an $O(g \times s)$
+implementation effort: the core is written once, each substrate contributes one
+adaptation layer, and all guests are inherited from the existing KVM ecosystem.

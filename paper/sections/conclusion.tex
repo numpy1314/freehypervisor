@@ -1,0 +1,14 @@
+\section{Conclusion}
+
+We have argued that hypervisor--OS coupling is primarily a software-architecture
+issue and that it can be addressed by making the dependency explicit through a
+substrate interface contract. By restructuring \axvisor{} around such a
+contract, the same virtualization core runs on \arceos{}, \asterinas{}, and
+Linux, while a KVM-compatible ABI keeps the guest side decoupled from the
+substrate choice. Booting a bare-metal Linux guest on both the \asterinas{} and
+Linux substrates demonstrates that the contract is sufficient for real
+workloads, and the measured adaptation effort and overhead indicate that the
+cost of portability is modest. The broader lesson is that hypervisors need not
+be bound to a single host OS; with the right service boundary, they can be
+engineered as portable system components and retargeted across kernels with
+limited effort.

@@ -1,0 +1,70 @@
+\section{Related Work}
+
+We situate \axvisor{} against three bodies of work: hypervisor architectures, OS
+modularity and library-OS designs, and software-architecture approaches to
+portability.
+
+\paragraph{Hypervisor architectures and their substrate coupling}
+Xen introduced paravirtualization to let multiple commodity OSes share hardware
+with low overhead, but its design presupposes a privileged Dom0 and a specific
+hypervisor--guest contract~\cite{barham2003xen}. KVM turned the Linux kernel
+itself into a hypervisor via a character device and ioctl
+ABI~\cite{kivity2007kvm}, which made virtualization a Linux subsystem rather
+than a portable component; Firecracker builds on KVM and inherits that
+dependency while specializing for serverless density~\cite{agache2020firecracker}.
+Static-partitioning hypervisors reduce coupling to a substrate but do not
+eliminate it: Jailhouse relies on a booted Linux to initialize hardware before
+partitioning~\cite{ramsauer2017jailhouse}; Bao assumes a bare-metal boot and
+memory model~\cite{martins2020bao}; ACRN couples to a service-VM configuration
+for IoT consolidation~\cite{li2019acrn}. Comparative studies of these systems
+treat each as an independent whole and do not ask whether a shared
+virtualization core could span substrates~\cite{lozano2023comprehensive}.
+Research designs that rethink the boundary---DuVisor's user-level hypervisor
+through delegated virtualization~\cite{chen2022duvisor} and the
+Out-of-Hypervisor approach to nested virtualization~\cite{bitchebe2022ooh}---
+relocate coupling between kernel and user space rather than abstracting the
+substrate contract. \axvisor{} differs by making the substrate dependency an
+explicit, minimal contract that multiple OSes implement, so the same core is
+reused rather than re-embedded.
+
+\paragraph{OS modularity, library OSes, and unikernels}
+Unikraft decomposes OS construction into selectable primitives so that a
+specialized unikernel can be assembled per application, demonstrating that OS
+services can be factored into reusable libraries~\cite{kuenzer2021unikraft}.
+LibrettOS fuses library-OS and multiserver paradigms to balance isolation,
+performance, and adaptability~\cite{nikolaev2020librettos}. Unikernel isolation
+continues to be explored for edge and embedded targets where a small footprint
+and fast boot matter~\cite{kaiser2024unikernels, ueda2024mewz}. Asterinas shows
+that a Rust-based framekernel can preserve Linux ABI compatibility while keeping
+a small, sound trusted computing base~\cite{peng2025asterinas,
+peng2024framekernel}. These works establish that OS services can be modular and
+substrate-agnostic in principle; \axvisor{} applies the same principle from the
+consumer side, defining what a hypervisor needs from such a substrate and
+showing that the requirement can be met by unikernel, framekernel, and
+monolithic OSes alike.
+
+\paragraph{Guest-facing standardization and hardware portability}
+The KVM ABI itself is a form of guest-side decoupling: by standardizing the
+VMM-to-hypervisor interface, it lets guests and toolchains be reused across KVM
+implementations~\cite{kivity2007kvm}. \axvisor{} adopts this ABI precisely to
+inherit that ecosystem on the guest side while adding substrate-side decoupling
+below. Separately, hardware portability across ISAs is an active axis: work on
+Arm and RISC-V virtualization explores how hypervisors span
+architectures~\cite{sa2023cva6}. Hardware portability is orthogonal to
+substrate-OS portability---a hypervisor can be cross-ISA yet bound to one OS, or
+cross-OS yet single-ISA---and \axvisor{}'s contribution complements rather than
+competes with this axis. Work on virtualization for safety-critical systems,
+including virtio-based real-time I/O sharing~\cite{peixoto2024birtio} and
+timing-impossibility results for perfect hypervisors~\cite{guri2025impossibility},
+addresses different concerns (predictability and fundamental limits) and is
+complementary to portability.
+
+\paragraph{Software architecture and portability}
+Abstraction and modularity are foundational to managing complexity and enabling
+reuse in software systems~\cite{shaw2025abstractions, wan2023software}. Yet
+portability is often an aspiration that breaks down when abstractions leak
+platform semantics~\cite{mince2023illusion}. \axvisor{} engages this tension
+directly: its substrate contract is designed to surface, not conceal, the
+semantic differences (physical memory ownership, interrupt context, stage-2
+control) where portability is contested, and its evaluation measures adaptation
+cost as evidence that the abstraction holds.

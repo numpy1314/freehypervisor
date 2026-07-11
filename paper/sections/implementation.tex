@@ -1,0 +1,140 @@
+\section{Implementation}
+
+We implemented the design by restructuring \axvisor{}, originally a hypervisor
+built on the \arceos{} substrate, into the portable-core-plus-adaptation-layer
+form and then adding two new substrates: \asterinas{} and Linux. This section
+describes the core restructuring (\S\ref{sec:core-restructuring}), the three
+substrate adaptation layers and the semantic mismatches they resolve
+(\S\ref{sec:adaptation-layers}), and the KVM-ABI shim
+(\S\ref{sec:kvm-shim}). We use Rust throughout, inheriting \axvisor{}'s and
+\arceos{}'s language choice, which also lets the contract be expressed as a Rust
+trait that each adaptation layer must implement.
+
+\subsection{Core Restructuring}
+\label{sec:core-restructuring}
+
+The original \axvisor{} interleaved virtualization logic with direct calls to
+\arceos{} services: memory allocation went through \arceos{}'s frame allocator,
+vCPU threads were \arceos{} tasks, and interrupt registration used \arceos{}'s
+IRQ framework. To make the core portable, we performed a dependency-inversion
+refactoring. We defined the substrate interface contract of
+Section~\ref{sec:contract} as a trait object that the core holds by reference.
+Every former direct call into \arceos{} was replaced by a call through this
+trait. Code that was genuinely about virtualization---the vCPU state machine,
+stage-2 page-table management, the trap dispatcher, hypercall handlers, and the
+virtio device models---remained in the core unchanged in logic. Code that was
+about obtaining a resource was moved behind the trait.
+
+The restructuring exposed a useful invariant: the operations the core needs
+cluster into the seven service groups of Table~\ref{tab:contract}, and no group
+requires more than a handful of operations. After refactoring, the core contains
+no substrate-specific symbols; it is linked against whichever adaptation layer
+the build selects. This matches goal G1: portability is measured by the thinness
+of the adaptation layer, not by conditional compilation in the core.
+
+\subsection{Substrate Adaptation Layers}
+\label{sec:adaptation-layers}
+
+We implemented three adaptation layers, each exercising a different point in the
+OS design space.
+
+\paragraph{\arceos{} substrate}
+\arceos{} is a modular, unikernel-style OS base in which the hypervisor has
+historically had direct, low-overhead access to hardware and system services.
+Its adaptation layer is the most direct: \arceos{} already exposes physical
+frame allocation, task creation, and IRQ registration in forms close to what the
+contract requires. Most contract operations map to existing \arceos{} APIs with
+light wrapping. This substrate serves as the baseline: it represents the case
+where the substrate is already ``hypervisor-friendly'' and imposes minimal
+adaptation cost. The main work was re-expressing \arceos{} calls through the
+trait so that the core no longer imported \arceos{} symbols directly.
+
+\paragraph{\asterinas{} substrate}
+\asterinas{} is a Linux-ABI-compatible, Rust-based framekernel OS with a small,
+sound trusted computing base~\cite{peng2025asterinas, peng2024framekernel}. Its
+kernel architecture differs substantially from \arceos{}'s unikernel model: it
+enforces intra-kernel privilege separation, manages address spaces through a
+distinct abstraction, and exposes system services through its own internal
+interfaces rather than through the flat, single-address-space model \arceos{}
+provides. The \asterinas{} adaptation layer therefore had to reconcile several
+semantic mismatches.
+
+The first mismatch concerns physical memory. \arceos{} readily hands out
+physical frames; \asterinas{}'s memory subsystem is structured around its own
+kernel address-space and safety model, so obtaining raw physical frames and
+installing stage-2 mappings required bridging between \asterinas{}'s safe
+abstractions and the physical addresses the contract demands. The adaptation
+layer recovers physical frame numbers from \asterinas{}'s allocation primitives
+and translates contract \code{map\_stage2} calls into \asterinas{}'s page-table
+manipulation facilities. The second mismatch concerns execution contexts:
+\asterinas{}'s scheduling and thread model differs from \arceos{} tasks, so
+\code{vcpu\_run} is implemented on top of \asterinas{} threads that enter the
+virtualization mode. The third concerns interrupts: \asterinas{} routes
+interrupts through its own framework, and the adaptation layer registers
+contract IRQ handlers within that framework while preserving the semantics the
+core expects. Despite these mismatches, the adaptation layer is confined to the
+contract boundary; the core's virtualization logic required no modification.
+
+\paragraph{Linux substrate}
+Linux represents the opposite extreme from \arceos{}: a mature monolithic kernel
+with extensive facilities but also strong internal boundaries, a module model, a
+privilege structure, and abstractions that often hide the very physical
+resources a hypervisor needs. Implementing the contract on Linux is therefore an
+instructive stress test: if the contract can be satisfied even where the OS
+actively abstracts away physical resources, it is likely sufficient for less
+constrained substrates.
+
+The Linux adaptation layer is realized as a kernel module. Several contract
+operations required bridging deliberate Linux abstractions. Physical memory
+allocation uses contiguous-frame allocators rather than the default page
+allocator, because the core needs physical addresses and contiguity for stage-2
+mappings. Stage-2 (EPT/NPT) management requires control of the hardware
+virtualization structures that Linux normally governs through KVM; the
+adaptation layer provisions these without conflicting with the host's own KVM
+when co-resident. Interrupt registration bridges to Linux's IRQ subsystem, with
+care taken for context semantics: Linux interrupt handlers may run in contexts
+where the core's synchronization assumptions need adaptation. The vCPU run loop
+is backed by a kernel thread that enters VMX root (x86) or EL2 (Arm). The IOMMU
+operations map onto Linux's IOMMU/DMA APIs where available. The key observation
+is that Linux \emph{can} provide every contract capability, but each requires
+explicitly escaping abstractions that application-facing Linux code never
+touches---which is precisely why a hypervisor-grade contract, rather than a
+generic OS API, is necessary.
+
+\begin{table}[t]
+  \centering
+  \caption{Implementation summary across substrates. LoC figures are
+  adaptation-layer sizes excluding the shared core. \fillme{Fill with measured
+  values}.}
+  \label{tab:impl-summary}
+  \begin{tabular}{@{}llccl@{}}
+    \toprule
+    \textbf{Substrate} & \textbf{Model} & \textbf{Adapt. LoC} &
+      \textbf{Core reuse} & \textbf{Guest} \\
+    \midrule
+    \arceos{}    & unikernel   & \fillme{A} & \fillme{100\%} & Linux (KVM ABI) \\
+    \asterinas{} & framekernel & \fillme{B} & \fillme{100\%} & Linux (KVM ABI) \\
+    Linux        & monolithic  & \fillme{C} & \fillme{100\%} & Linux (KVM ABI) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{KVM-ABI Shim}
+\label{sec:kvm-shim}
+
+The KVM-ABI shim lives in the portable core and implements the standard ioctl
+surface (\code{KVM\_CREATE\_VM}, \code{KVM\_CREATE\_VCPU}, \code{KVM\_RUN},
+memory-slot management, irqchip and interrupt routing, and the one-reg register
+accessors). Each ioctl translates to core operations that themselves call only
+through the substrate contract. Because the shim is substrate-neutral, the same
+guest images and the same VMM logic run on all three substrates. In our
+evaluation (\S\ref{sec:evaluation}), an unmodified bare-metal Linux kernel boots
+as a guest on both the \asterinas{} and Linux substrates, exercising the shim's
+create/run/memory/irq paths end to end.
+
+The shim also demonstrates the value of the double-decoupling. Without it, each
+substrate would need its own guest-facing interface, and each guest would need
+per-substrate adaptation. With it, the guest $\times$ substrate matrix is
+covered by one core plus $s$ adaptation layers plus one ABI, rather than
+$g \times s$ bespoke paths. Table~\ref{tab:impl-summary} summarizes the
+implementation.

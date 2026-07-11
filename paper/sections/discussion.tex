@@ -1,0 +1,56 @@
+\section{Discussion}
+
+\subsection{What the Contract Reveals About Substrates}
+
+Building three adaptation layers made the contract a diagnostic instrument as
+well as an interface. The distribution of adaptation effort is not uniform:
+memory and interrupt operations demanded the most bridging and recovery on every
+non-trivial substrate, while synchronization and lifecycle operations mapped
+almost directly. This pattern is consistent across \asterinas{} and Linux
+despite their architectural differences, which suggests that the contract's
+structure---not any single OS's shape---identifies where OS designs genuinely
+diverge. A substrate that makes physical memory and stage-2 control cheap to
+obtain (like \arceos{}) is hypervisor-friendly almost for free; a substrate that
+abstracts them away (like Linux) pays in recovery. The contract therefore
+doubles as a specification of what it means for an OS to be a good hypervisor
+substrate.
+
+\subsection{Limitations of the Current Contract}
+
+The contract is sufficient for our guest workloads but not yet complete. Device
+passthrough depends on optional IOMMU capabilities that not all substrates
+expose, so full passthrough is substrate-gated. Multi-core guest scheduling and
+CPU affinity are mediated by the substrate's scheduler, which the contract
+treats as policy; richer control over vCPU placement would require extending the
+contract. Live migration, snapshot/restore, and nested virtualization are out of
+scope. These are natural extensions rather than refutations: each would add
+operations to the contract, but the core's substrate-independence would be
+preserved because the additions are themselves substrate-neutral in
+specification.
+
+\subsection{Generality Beyond the Three Substrates}
+
+The three substrates span unikernel, framekernel, and monolithic designs, which
+covers much of the practical OS design space for our target domains. Microkernel
+and capability-based substrates (e.g., seL4-based systems) remain untested. We
+conjecture that such substrates are amenable to the contract because their
+service-oriented structure already separates policy from mechanism, but
+validating this is future work. The contract's eligibility criterion---a
+substrate can host \axvisor{} iff it provides the required capabilities---makes
+the question empirical rather than architectural: any OS that can allocate
+physical memory, control stage-2 translation, create execution contexts, and
+route interrupts is a candidate.
+
+\subsection{Implications for OS and Hypervisor Co-Design}
+
+The work suggests a shift in how virtualization support is added to new OSes.
+Rather than treating the hypervisor as an OS-specific artifact built during
+kernel development, a community could maintain a shared, portable hypervisor
+core and treat each OS's adaptation layer as a bounded engineering task
+comparable to writing a driver. This decouples the evolution of virtualization
+logic from the evolution of any single OS and lets emerging OSes inherit mature
+virtualization by contract compliance. The KVM-compatible ABI amplifies this
+benefit on the guest side: the same guest ecosystem is inherited for free. The
+net effect is to reduce the $O(\text{OSes} \times \text{guests})$ implementation
+matrix toward $O(\text{OSes}) + O(\text{guests})$, mediated by one core and two
+stable contracts.

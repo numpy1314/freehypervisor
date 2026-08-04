@@ -45,6 +45,7 @@ scripts/config --file "$BUILD_DIR/.config" \
     --enable VIRTIO_MMIO \
     --enable VIRTIO_MMIO_CMDLINE_DEVICES \
     --enable VIRTIO_BLK \
+    --enable USER_NS \
     --disable AXVISOR_ADAPTER \
     --disable AXVISOR_KVM \
     --disable AXVISOR_KVM_AXVISOR_BACKEND \

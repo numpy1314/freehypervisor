@@ -1,0 +1,122 @@
+<svg viewBox="0 0 1240 560" xmlns="http://www.w3.org/2000/svg" font-family="'Microsoft YaHei','PingFang SC',sans-serif">
+  <defs>
+    <marker id="ah" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0.5 L6.5,3 L0,5.5" fill="none" stroke="#333" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="ahg" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0.5 L6.5,3 L0,5.5" fill="none" stroke="#999" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <filter id="sh" x="-5%" y="-5%" width="110%" height="114%">
+      <feDropShadow dx="1.3" dy="1.7" stdDeviation="0.8" flood-color="#000" flood-opacity="0.13"/>
+    </filter>
+  </defs>
+
+  <!-- ============ 左侧：四个纵向能力平面（正向逐字竖排） ============ -->
+  <g font-size="14" font-weight="700">
+    <rect x="12" y="20" width="32" height="376" rx="6" fill="#fff" stroke="#333" stroke-width="1.3" filter="url(#sh)"/>
+    <text x="28" y="172" fill="#333" text-anchor="middle"><tspan x="28" dy="0">资</tspan><tspan x="28" dy="19">源</tspan><tspan x="28" dy="19">与</tspan><tspan x="28" dy="19">任</tspan><tspan x="28" dy="19">务</tspan></text>
+    <rect x="48" y="20" width="32" height="376" rx="6" fill="#fff" stroke="#333" stroke-width="1.3" filter="url(#sh)"/>
+    <text x="64" y="172" fill="#333" text-anchor="middle"><tspan x="64" dy="0">数</tspan><tspan x="64" dy="19">据</tspan><tspan x="64" dy="19">与</tspan><tspan x="64" dy="19">通</tspan><tspan x="64" dy="19">信</tspan></text>
+    <rect x="84" y="20" width="32" height="376" rx="6" fill="#EAF6EE" stroke="#1E9E57" stroke-width="1.5" filter="url(#sh)"/>
+    <text x="100" y="182" fill="#1E7E45" text-anchor="middle"><tspan x="100" dy="0">安</tspan><tspan x="100" dy="19">全</tspan><tspan x="100" dy="19">可</tspan><tspan x="100" dy="19">信</tspan></text>
+    <rect x="120" y="20" width="32" height="376" rx="6" fill="#fff" stroke="#333" stroke-width="1.3" filter="url(#sh)"/>
+    <text x="136" y="162" fill="#333" text-anchor="middle"><tspan x="136" dy="0">可</tspan><tspan x="136" dy="19">观</tspan><tspan x="136" dy="19">测</tspan><tspan x="136" dy="19">与</tspan><tspan x="136" dy="19">评</tspan><tspan x="136" dy="19">测</tspan></text>
+  </g>
+  <text x="82" y="414" font-size="11.5" fill="#888" text-anchor="middle">四类横向能力平面 · 纵向贯穿</text>
+
+  <!-- ============ 中间：三域（云/边/端），每层配手绘小图标 ============ -->
+
+  <!-- 云端 -->
+  <rect x="170" y="20" width="720" height="96" rx="9" fill="#fff" stroke="#222" stroke-width="1.6" filter="url(#sh)"/>
+  <!-- 云朵图标 -->
+  <g transform="translate(196,40)" stroke="#2C6FA8" stroke-width="1.6" fill="#EAF2FA" stroke-linejoin="round">
+    <path d="M4,20 a10,10 0 0,1 3,-19 a13,13 0 0,1 24,3 a9,9 0 0,1 1,17 Z"/>
+  </g>
+  <text x="250" y="49" font-size="19" font-weight="700" fill="#222">云端</text>
+  <text x="250" y="70" font-size="12.5" fill="#666">全局治理 · 跨区域编排 · 数据分析（不进入本地实时闭环）</text>
+  <g font-size="12" fill="#333">
+    <rect x="250" y="80" width="140" height="26" rx="7" fill="#fff" stroke="#666"/><text x="320" y="97" text-anchor="middle">资源/任务全局视图</text>
+    <rect x="400" y="80" width="84" height="26" rx="7" fill="#fff" stroke="#666"/><text x="442" y="97" text-anchor="middle">策略生成</text>
+    <rect x="494" y="80" width="104" height="26" rx="7" fill="#fff" stroke="#666"/><text x="546" y="97" text-anchor="middle">签名与回滚</text>
+    <rect x="608" y="80" width="124" height="26" rx="7" fill="#fff" stroke="#666"/><text x="670" y="97" text-anchor="middle">跨层级关联分析</text>
+  </g>
+
+  <!-- 边缘 -->
+  <rect x="170" y="160" width="720" height="96" rx="9" fill="#fff" stroke="#222" stroke-width="1.6" filter="url(#sh)"/>
+  <!-- 网关/基站图标 -->
+  <g transform="translate(198,178)" stroke="#B0740F" stroke-width="1.6" fill="#FBF3E2" stroke-linejoin="round">
+    <rect x="4" y="14" width="26" height="20" rx="2"/>
+    <line x1="10" y1="14" x2="10" y2="2" stroke-linecap="round"/>
+    <line x1="24" y1="14" x2="24" y2="2" stroke-linecap="round"/>
+    <path d="M17,20 h0.5 M17,26 h0.5" stroke-width="2.4" stroke-linecap="round"/>
+  </g>
+  <text x="250" y="189" font-size="19" font-weight="700" fill="#222">边缘</text>
+  <text x="250" y="210" font-size="12.5" fill="#666">协议汇聚 · 低时延处理 · 断网自治 · 实时域/通用域混合部署</text>
+  <g font-size="12" fill="#333">
+    <rect x="250" y="220" width="112" height="26" rx="7" fill="#fff" stroke="#666"/><text x="306" y="237" text-anchor="middle">设备/协议汇聚</text>
+    <rect x="372" y="220" width="94" height="26" rx="7" fill="#fff" stroke="#666"/><text x="419" y="237" text-anchor="middle">数据预处理</text>
+    <rect x="476" y="220" width="80" height="26" rx="7" fill="#fff" stroke="#666"/><text x="516" y="237" text-anchor="middle">任务卸载</text>
+    <rect x="566" y="220" width="80" height="26" rx="7" fill="#fff" stroke="#666"/><text x="606" y="237" text-anchor="middle">断网自治</text>
+  </g>
+
+  <!-- 终端 -->
+  <rect x="170" y="300" width="720" height="96" rx="9" fill="#fff" stroke="#222" stroke-width="1.6" filter="url(#sh)"/>
+  <!-- 传感器/仪表图标 -->
+  <g transform="translate(198,318)" stroke="#2C7BC0" stroke-width="1.6" fill="#EAF2FA">
+    <circle cx="17" cy="18" r="15"/>
+    <line x1="17" y1="18" x2="17" y2="8" stroke-linecap="round"/>
+    <line x1="17" y1="18" x2="25" y2="22" stroke-linecap="round"/>
+    <circle cx="17" cy="18" r="1.8" fill="#2C7BC0" stroke="none"/>
+  </g>
+  <text x="250" y="329" font-size="19" font-weight="700" fill="#222">终端</text>
+  <text x="250" y="350" font-size="12.5" fill="#666">实时感知 · 确定性控制 · 失联本地自治</text>
+  <g font-size="12" fill="#333">
+    <rect x="250" y="360" width="132" height="26" rx="7" fill="#fff" stroke="#666"/><text x="316" y="377" text-anchor="middle">最小/增强协同代理</text>
+    <rect x="392" y="360" width="80" height="26" rx="7" fill="#fff" stroke="#666"/><text x="432" y="377" text-anchor="middle">设备身份</text>
+    <rect x="482" y="360" width="80" height="26" rx="7" fill="#fff" stroke="#666"/><text x="522" y="377" text-anchor="middle">状态上报</text>
+    <rect x="572" y="360" width="80" height="26" rx="7" fill="#fff" stroke="#666"/><text x="612" y="377" text-anchor="middle">签名更新</text>
+  </g>
+
+  <!-- 云边端之间数据流箭头（在三域框内侧） -->
+  <path d="M862,118 Q868,138 864,158" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ah)"/>
+  <path d="M838,158 Q832,138 836,118" fill="none" stroke="#999" stroke-width="1.2" marker-end="url(#ahg)"/>
+  <path d="M862,258 Q868,278 864,298" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ah)"/>
+  <path d="M838,298 Q832,278 836,258" fill="none" stroke="#999" stroke-width="1.2" marker-end="url(#ahg)"/>
+
+  <!-- ============ 右侧：协同服务层——竖向贯通三域（与左侧平面对称） ============ -->
+  <!-- 贯通竖条 -->
+  <rect x="908" y="20" width="316" height="376" rx="9" fill="#F3F7FB" stroke="#0B3D6B" stroke-width="1.8" stroke-dasharray="8 4" filter="url(#sh)"/>
+  <!-- 齿轮/枢纽图标 -->
+  <g transform="translate(1050,44)" stroke="#0B3D6B" stroke-width="1.7" fill="#DCE8F3">
+    <circle cx="16" cy="16" r="9"/>
+    <circle cx="16" cy="16" r="3" fill="#0B3D6B" stroke="none"/>
+    <g stroke-linecap="round">
+      <line x1="16" y1="2" x2="16" y2="7"/><line x1="16" y1="25" x2="16" y2="30"/>
+      <line x1="2" y1="16" x2="7" y2="16"/><line x1="25" y1="16" x2="30" y2="16"/>
+      <line x1="6" y1="6" x2="9.5" y2="9.5"/><line x1="22.5" y1="22.5" x2="26" y2="26"/>
+      <line x1="26" y1="6" x2="22.5" y2="9.5"/><line x1="9.5" y1="22.5" x2="6" y2="26"/>
+    </g>
+  </g>
+  <text x="1066" y="98" font-size="19" font-weight="700" fill="#0B3D6B" text-anchor="middle">协同服务层</text>
+  <text x="1066" y="122" font-size="12" fill="#33475C" text-anchor="middle">位于各域内核与业务之间</text>
+  <text x="1066" y="140" font-size="12" fill="#33475C" text-anchor="middle">屏蔽芯片/内核/设备/协议差异</text>
+  <text x="1066" y="168" font-size="12.5" fill="#0B3D6B" text-anchor="middle" font-weight="700">统一抽象为五类对象</text>
+  <g font-size="13" fill="#0B3D6B" font-weight="700">
+    <rect x="946" y="184" width="110" height="30" rx="8" fill="#fff" stroke="#0B3D6B"/><text x="1001" y="204" text-anchor="middle">资源</text>
+    <rect x="1076" y="184" width="110" height="30" rx="8" fill="#fff" stroke="#0B3D6B"/><text x="1131" y="204" text-anchor="middle">设备</text>
+    <rect x="946" y="224" width="110" height="30" rx="8" fill="#fff" stroke="#0B3D6B"/><text x="1001" y="244" text-anchor="middle">服务</text>
+    <rect x="1076" y="224" width="110" height="30" rx="8" fill="#fff" stroke="#0B3D6B"/><text x="1131" y="244" text-anchor="middle">任务</text>
+    <rect x="1011" y="264" width="110" height="30" rx="8" fill="#fff" stroke="#0B3D6B"/><text x="1066" y="284" text-anchor="middle">数据</text>
+  </g>
+  <text x="1066" y="320" font-size="12" fill="#33475C" text-anchor="middle">跨层级生命周期管理</text>
+
+  <!-- 协同层与三域的双向交互（分别连云/边/端，体现横切三域） -->
+  <path d="M890,66 h18" fill="none" stroke="#0B3D6B" stroke-width="1.4" marker-end="url(#ah)"/>
+  <path d="M908,86 h-18" fill="none" stroke="#0B3D6B" stroke-width="1.4" marker-end="url(#ah)"/>
+  <path d="M890,206 h18" fill="none" stroke="#0B3D6B" stroke-width="1.4" marker-end="url(#ah)"/>
+  <path d="M908,226 h-18" fill="none" stroke="#0B3D6B" stroke-width="1.4" marker-end="url(#ah)"/>
+  <path d="M890,346 h18" fill="none" stroke="#0B3D6B" stroke-width="1.4" marker-end="url(#ah)"/>
+  <path d="M908,366 h-18" fill="none" stroke="#0B3D6B" stroke-width="1.4" marker-end="url(#ah)"/>
+
+  <text x="1066" y="440" font-size="11.5" fill="#888" text-anchor="middle">协同服务层同时对接云、边、端三域，向上支撑电力业务</text>
+</svg>

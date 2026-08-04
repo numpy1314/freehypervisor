@@ -466,7 +466,7 @@ prepare_host_initramfs() {
   "boot-source": {
     "kernel_image_path": "/root/firecracker-guest-vmlinux",
     "initrd_path": "/root/firecracker-guest-initrd.cpio.gz",
-    "boot_args": "console=ttyS0 earlyprintk=serial keep_bootcon reboot=k panic=1 acpi=off pci=off nomodule tsc=unstable no_timer_check 8250.nr_uarts=0 initcall_blacklist=ahci_pci_driver_init,i8042_init init=/init rdinit=/init $FIRECRACKER_GUEST_BOOT_ARGS_EXTRA"
+    "boot_args": "console=ttyS0 earlyprintk=serial keep_bootcon reboot=k panic=1 acpi=off pci=off nomodule no_timer_check 8250.nr_uarts=0 initcall_blacklist=ahci_pci_driver_init,i8042_init init=/init rdinit=/init $FIRECRACKER_GUEST_BOOT_ARGS_EXTRA"
   },
   "drives": [],
   "machine-config": {
@@ -482,7 +482,7 @@ EOF
 {
   "boot-source": {
     "kernel_image_path": "/root/firecracker-guest-vmlinux",
-    "boot_args": "console=ttyS0 earlyprintk=serial keep_bootcon reboot=k panic=1 acpi=off pci=off nomodule tsc=unstable no_timer_check 8250.nr_uarts=0 initcall_blacklist=ahci_pci_driver_init,i8042_init root=/dev/vda rw rootwait devtmpfs.mount=1 init=$FIRECRACKER_GUEST_INIT $FIRECRACKER_GUEST_BOOT_ARGS_EXTRA"
+    "boot_args": "console=ttyS0 earlyprintk=serial keep_bootcon reboot=k panic=1 acpi=off pci=off nomodule no_timer_check 8250.nr_uarts=0 initcall_blacklist=ahci_pci_driver_init,i8042_init root=/dev/vda rw rootwait devtmpfs.mount=1 init=$FIRECRACKER_GUEST_INIT $FIRECRACKER_GUEST_BOOT_ARGS_EXTRA"
   },
   "drives": [
     {
@@ -502,11 +502,14 @@ EOF
 EOF
     fi
 
-    cat >"$HOST_INITRAMFS_DIR/init" <<'EOF'
+    cat >"$HOST_INITRAMFS_DIR/init" <<EOF
 #!/bin/sh
 set -eu
 
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+AXVISOR_KVM_MODULE_ARGS="${AXVISOR_KVM_MODULE_ARGS:-}"
+EOF
+    cat >>"$HOST_INITRAMFS_DIR/init" <<'EOF'
 
 finish() {
     sync || true
@@ -537,8 +540,8 @@ mkdir -p /dev /proc /sys /tmp /root
 echo "[guest-host] uname -a"
 uname -a || true
 
-echo "[guest-host] insmod axvisor_kvm.ko dev_name=kvm"
-if ! insmod /root/axvisor_kvm.ko dev_name=kvm; then
+echo "[guest-host] insmod axvisor_kvm.ko dev_name=kvm ${AXVISOR_KVM_MODULE_ARGS}"
+if ! insmod /root/axvisor_kvm.ko dev_name=kvm ${AXVISOR_KVM_MODULE_ARGS}; then
     fail "insmod"
 fi
 
@@ -605,6 +608,12 @@ while [ "$i" -lt 180 ]; do
 
     sleep 1
     i=$((i + 1))
+    if [ $((i % 20)) -eq 0 ]; then
+        echo "[guest-host] progress i=$i serial tail:"
+        tail -n 8 /root/firecracker-serial.log 2>/dev/null || true
+        echo "[guest-host] guest smpboot/online so far:"
+        grep -aE "smpboot|Brought up|CPU[0-9]+|GUEST_CPU_ONLINE|CPUINFO|GUEST_STAGE" /root/firecracker-serial.log 2>/dev/null | tail -n 6 || true
+    fi
 done
 
 kill "$fc_pid" >/dev/null 2>&1 || true
@@ -643,6 +652,8 @@ launch_qemu() {
         -display none \
         -monitor none \
         -serial "file:$QEMU_LOG" \
+        -debugcon "file:$RUN_DIR/l1-debugcon.log" \
+        -global isa-debugcon.iobase=0xe9 \
         -m "$QEMU_MEM" \
         -smp "$QEMU_SMP" \
         -accel "$QEMU_ACCEL" \

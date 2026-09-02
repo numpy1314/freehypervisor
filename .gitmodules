@@ -1,0 +1,4 @@
+[submodule "linux-host-kernel"]
+	path = linux-host-kernel
+	url = https://github.com/numpy1314/freehypervisor-linux-host-kernel.git
+	branch = main

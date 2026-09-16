@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+Subject: [PATCH] svm: require decode assists for CR write intercepts
+
+EXITINFO1 identifies the source GPR of an intercepted MOV-to-CR only when
+CPUID reports SVM DecodeAssist.  Without that feature the field is invalid;
+treating its zero value as RAX corrupted Linux's CR3 on `mov %rsi,%cr3` and
+caused a triple fault.  Leave control-register writes to architectural SVM
+execution when decode assists are unavailable.  The guest CPUID policy
+already hides every CR4 feature that this backend does not implement.
+
+This is a host-neutral SVM correctness fix and adds no substrate operation.
+---
+ virtualization/x86_vcpu/src/svm/vcpu.rs | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)
+
+diff --git a/virtualization/x86_vcpu/src/svm/vcpu.rs b/virtualization/x86_vcpu/src/svm/vcpu.rs
+--- a/virtualization/x86_vcpu/src/svm/vcpu.rs
++++ b/virtualization/x86_vcpu/src/svm/vcpu.rs
+@@ -355,10 +355,22 @@ impl SvmVcpu {
+             .tlb_control
+             .modify(VmcbTlbControl::CONTROL::FlushGuestTlb);
+-        control.intercept_cr.modify(
+-            InterceptCrRw::WRITE_CR0::SET
+-                + InterceptCrRw::WRITE_CR3::SET
+-                + InterceptCrRw::WRITE_CR4::SET,
+-        );
++        // EXITINFO1 contains the MOV-to-CR source GPR only when DecodeAssist
++        // is present.  Without it, intercepting these writes would require a
++        // full instruction decoder; architectural execution is both simpler
++        // and correct.  Guest CPUID hides the optional CR4 features that this
++        // backend cannot expose safely.
++        let has_decode_assists = raw_cpuid::CpuId::new()
++            .get_svm_info()
++            .is_some_and(|features| features.has_decode_assists());
++        if has_decode_assists {
++            control.intercept_cr.modify(
++                InterceptCrRw::WRITE_CR0::SET
++                    + InterceptCrRw::WRITE_CR3::SET
++                    + InterceptCrRw::WRITE_CR4::SET,
++            );
++        } else {
++            warn!("SVM DecodeAssist unavailable; using architectural CR writes");
++        }
+         control
+             .intercept_exceptions
+             .modify(InterceptExceptions::UD::SET);
+-- 
+2.39.5

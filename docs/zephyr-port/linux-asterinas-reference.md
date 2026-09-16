@@ -16,7 +16,7 @@ The static VMM and vCPU state machine remain in `axvisor_core`; architectural en
 
 | Capability | Core behavior | Linux reference | Asterinas reference | Zephyr mapping |
 |---|---|---|---|---|
-| Physical ownership | `axvm` asks for frames/segments; SVM uses `PhysFrame` and contiguous frames; Core constructs NPT. | Linux pages plus an allocation-record table; explicitly registered Guest RAM may be mapped. Current contiguous methods are absent from the pinned older bridge. | OSTD `Frame`/`Segment`, aligned splitting, and `MEMORY_ALLOCS` ownership map. | Dedicated 16 MiB physically contiguous pool with per-page ownership states. |
+| Physical ownership | `axvm` asks for frames/segments; SVM uses `PhysFrame` and contiguous frames; Core constructs NPT. | Linux pages plus an allocation-record table; explicitly registered Guest RAM may be mapped. Current contiguous methods are absent from the pinned older bridge. | OSTD `Frame`/`Segment`, aligned splitting, and `MEMORY_ALLOCS` ownership map. | Dedicated physically contiguous pool with per-page ownership states: 16 MiB for contract tests and 80 MiB for the Linux profile. |
 | Execution contexts | Core creates per-CPU initialization tasks and one task per vCPU; the host scheduler owns dispatch. | Kernel threads/kthreads through the C bridge. | OSTD kernel `Task`, CPU affinity and a publication barrier. | `k_thread` with dynamic stack, CPU mask, completion and opaque handle. |
 | Blocking/notification | `VMVCpus` and global VMM each own an API `WaitQueue`; conditions are checked in Core, sleeping/waking is host-provided. | Kernel wait queues and predicate trampoline. | OSTD `WaitQueue`/`Waiter`. | Generation-based `k_sem` wait queue with install/recheck. |
 | Time | Core reads monotonic nanoseconds and submits absolute one-shot deadlines. | `ktime_get_ns` plus high-resolution timer. | Asterinas monotonic clock plus architecture one-shot. | Zephyr uptime ticks converted to nanoseconds plus one-shot `k_timer`. |
@@ -43,8 +43,8 @@ The pinned source does **not** contain an explicit enum named `Blocked / Pre-ent
 |---|---|---|
 | VM-vCPU owner publication | The `VMVCpus` registry must exist before `spawn_task_raw` can schedule the vCPU closure. | Core patch 0001 changes publication order; eager Zephyr scheduling no longer observes a missing owner. |
 | Condition-to-block | Consumer checks condition, installs itself and captures generation, rechecks, then sleeps. Producer updates state before advancing generation/waking. | Forced post-install/pre-sleep race passes; stale pre-install wake credit is rejected; deliberately broken negative control loses the wake as expected. |
-| Pre-entry interrupt drain | Producer queues an interrupt under the Core lock and wakes; owner drains pending interrupts before each `vm.run_vcpu`. | Source trace; minimal no-device Guest does not claim full device-interrupt coverage. |
-| Guest execution | Owner is inside Core SVM `VMRUN`; a host IPI can arrive on the owning pCPU without borrowing or freeing the vCPU. | Three vector-240 IPIs are observed between Guest markers, followed by another Guest marker and clean exit. |
+| Pre-entry interrupt drain | Producer queues an interrupt under the Core lock and wakes; owner drains pending interrupts before each `vm.run_vcpu`. | Linux reaches userspace using the Core's PIT/IOAPIC/vLAPIC path; Linux setup invokes forwarding registration, and adapter tests independently cover handler dispatch. Physical host-IRQ passthrough is not claimed. |
+| Guest execution | Owner is inside Core SVM `VMRUN`; a host IPI can arrive on the owning pCPU without borrowing or freeing the vCPU. | Linux timer progress and clean shutdown exercise the path; the supplemental directed-window test observes three vector-240 IPIs between two Guest markers. |
 | Exit/close/teardown | Shutdown publishes stopping, wakes all, each vCPU exits, last vCPU wakes VMM, host joins tasks, wait queues drain, then per-CPU SVM is disabled. | Single and 4-vCPU runs show join completion and two independent SVM-off events. |
 
 The tests establish no lost wakeup, no stale wake credit, no task use after join, no allocation reuse while zeroing, in-Guest notification progress, and eventual shutdown. They do not prove every possible interleaving or a nonexistent named owner-state protocol.
@@ -57,6 +57,6 @@ The tests establish no lost wakeup, no stale wake credit, no task use after join
 | Guest RAM | explicitly registered/mapped host pages | tracked segment, linear mapping | 2 MiB-aligned pool allocation; Core maps GPA→HPA in NPT |
 | HSAVE/VMCB/NPT | allocated physical frames | allocated host frames/segments | 4 KiB-aligned pool pages |
 | General kernel object | validated kernel mapping | architecture mapping | `arch_page_phys_get`, used only by `virt_to_phys`; not accepted by `phys_to_virt` |
-| MMIO | explicit `ioremap`/device ownership | architecture/device mapping | not part of the minimal no-device Guest; no arbitrary-MMIO fallback |
+| MMIO | explicit `ioremap`/device ownership | architecture/device mapping | Core-emulated IOAPIC MMIO is exercised by Linux; no arbitrary host-MMIO fallback or physical passthrough is claimed |
 
 This narrower Zephyr mapping is intentional: the adapter grants the Core access only to memory it owns, except for VA→PA discovery needed for already mapped kernel objects.

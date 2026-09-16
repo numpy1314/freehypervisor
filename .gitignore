@@ -42,6 +42,7 @@ data/strace/
 
 # Zephyr/Rust build products and local reference trees.
 build/zephyr/
+build/apt-cache/
 .west/
 
 # IDE

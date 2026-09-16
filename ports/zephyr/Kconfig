@@ -28,7 +28,7 @@ config FREEHYPERVISOR_IPI_VECTOR
 config FREEHYPERVISOR_POOL_MIB
 	int "Reserved hypervisor physical pool size in MiB"
 	default 16
-	range 8 64
+	range 8 128
 
 choice FREEHYPERVISOR_APP_MODE
 	prompt "FreeHypervisor validation application mode"

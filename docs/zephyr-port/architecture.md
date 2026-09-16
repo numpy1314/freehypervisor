@@ -7,7 +7,7 @@ The port remains **Zephyr x86_64**. The execution environment is an AMD virtual 
 This keeps the controlled variables as close as the environment permits:
 
 - same Core revision and `no_std` code;
-- same x86_64 target and Guest binary;
+- same x86_64 target and a real Linux kernel Guest;
 - existing Core-owned SVM entry/exit and NPT implementation;
 - only the host OS substrate adapter is new;
 - VMX and native KVM results remain explicitly blocked, not relabeled as SVM or TCG passes.
@@ -16,7 +16,7 @@ This keeps the controlled variables as close as the environment permits:
 
 ```mermaid
 flowchart TB
-    A["Static VMM / minimal Guest config"] --> B["Hypervisor Core (Rust, no_std)"]
+    A["Static VMM / Linux Guest config"] --> B["Hypervisor Core (Rust, no_std)"]
     B --> C["axvisor_api substrate contract"]
     C --> D["Zephyr Rust bridge + stable C ABI"]
     D --> E["Zephyr threads, semaphores, timer, MMU, APIC"]
@@ -34,19 +34,19 @@ Zephyr headers and types occur only below the C ABI. The Core static library is 
 | `ports/zephyr/src/memory.c` | Dedicated physical pool, ownership state, PA↔VA mapping. |
 | `ports/zephyr/src/threading.c` | `k_thread` creation, affinity, join, current handle and yield. |
 | `ports/zephyr/src/wait.c` | Generation/check-install-recheck semaphore protocol and close/drain. |
-| `ports/zephyr/src/time.c` | Monotonic nanoseconds and absolute one-shot timer conversion. |
-| `ports/zephyr/src/irq.c` | Contract IRQ registry and dedicated vector-240 APIC IPI. |
+| `ports/zephyr/src/time.c` | Monotonic nanoseconds, per-pCPU deadlines, ISR-safe work deferral and bounded VM-exit kick retry. |
+| `ports/zephyr/src/irq.c` | Contract IRQ registry, real Zephyr vector-table installation and dedicated vector-240 APIC IPI. |
 | `ports/zephyr/app` | Probe, contract, lifetime, Core, kick and SMP validation modes. |
-| `ports/zephyr/guests` | Tiny real-mode Guests and static VM configurations. |
+| `ports/zephyr/guests` | Linux config, libc-free PID 1/initramfs, plus supplemental micro-Guest regressions. |
 | `scripts/zephyr` | Pinned setup, build, execution, regression, evidence and LOC scripts. |
 
 ## Memory design
 
-`memory.c` reserves a statically linked 16 MiB array aligned to 2 MiB. At boot, Zephyr's x86 MMU translation verifies that the first and last pages form one contiguous PA interval. A spinlock-protected byte state per page implements `FREE`, `ALLOCATED`, and `FREEING`.
+`memory.c` reserves a statically linked, profile-sized array aligned to 2 MiB. The contract profile uses 16 MiB; the Linux profile uses 80 MiB so the Core can own 64 MiB of Guest RAM plus VMCB, NPT, HSAVE and metadata pages. At boot, Zephyr's x86 MMU translation verifies that the first and last pages form one contiguous PA interval. A spinlock-protected byte state per page implements `FREE`, `ALLOCATED`, and `FREEING`.
 
 `FREEING` is important: an allocation is not published as reusable until the prior owner has relinquished it and zeroing is complete. The lifetime suite pauses in this state and proves that an early allocation fails, while a post-release allocation obtains the original PA.
 
-The implementation records the actual range on every boot. In the captured run it is `PA [0x200000, 0x1200000)`, identity-mapped at the same VA by this Zephyr/QEMU configuration. The code does not assume identity mapping: pool translations are calculated as offsets, and contiguity is checked through `arch_page_phys_get`.
+The implementation records the actual range on every boot. The Linux evidence run uses `PA [0x400000, 0x5400000)`, identity-mapped at the same VA by this Zephyr/QEMU configuration. The code does not assume identity mapping: pool translations are calculated as offsets, and contiguity is checked through `arch_page_phys_get`.
 
 ## Scheduling and wait semantics
 
@@ -61,6 +61,8 @@ The wait queue is not a bare semaphore credit. Each wake increments a generation
 5. only then sleeps on `k_sem`.
 
 This rejects stale wake credits while closing the producer-between-check-and-sleep race.
+
+Zephyr `k_timer` expiration itself runs in interrupt context, while the Core timer dispatcher may log and take locks. The adapter therefore submits per-pCPU work and invokes the Rust dispatcher in Zephyr thread context. A bounded 1 ms kick retry closes the nested-TCG window in which an outer hypervisor can consume an IPI just outside `VMRUN`; the Core callback remains once per arm generation.
 
 ## IRQ/IPI policy
 
@@ -77,7 +79,7 @@ The dedicated IPI is an adapter extension used to validate host notification whi
 ./scripts/zephyr/run-hardware.sh   # returns 2 when native execution is blocked
 ```
 
-`prepare-core.sh` exports the pinned Core commit, applies the three documented host-neutral patches to a generated build tree, and never edits the reference checkout. `build-rust.sh` embeds the selected static TOML configuration and Guest bytes in the Rust static library. `build.sh` links that library into the Zephyr application.
+`prepare-core.sh` exports the pinned Core commit, applies the five documented host-neutral patches to `build/zephyr/core-src-audited`, verifies the generated diff hash, and never edits the reference checkout. `build-rust.sh` embeds the selected static TOML configuration, Linux bzImage and initramfs in the Rust static library. `build.sh` links that library into the Zephyr application.
 
 The Rust archive is passed to the compiler driver as one `--whole-archive,<archive>,--no-whole-archive` argument. This prevents Zephyr/CMake link-item reordering from silently dropping the otherwise unreferenced Rust `.percpu` template. After every Core-enabled build, `build.sh` resolves `_percpu_load_start` and `_percpu_load_end` with `nm` and fails if the final ELF contains an empty template; both the TCG and `native` configurations pass this check.
 

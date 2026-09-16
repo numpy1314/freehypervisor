@@ -2,8 +2,23 @@
 #include <freehypervisor/zephyr_adapter.h>
 
 #include <zephyr/kernel.h>
+#include <zephyr/sys/printk.h>
 
-static struct k_timer fh_oneshot;
+struct fh_cpu_timer {
+	struct k_timer timer;
+	struct k_work work;
+	unsigned int target_cpu;
+	atomic_t arm_generation;
+	atomic_t expired_generation;
+	atomic_t callback_generation;
+	atomic_t retry_count;
+};
+
+static struct fh_cpu_timer fh_oneshot[CONFIG_MP_MAX_NUM_CPUS];
+static atomic_t fh_timer_kick_reported;
+static atomic_t fh_timer_stopping;
+
+#define FH_TIMER_KICK_RETRIES 50
 
 #ifdef CONFIG_FREEHYPERVISOR_CONTRACT_TESTS
 static atomic_t fh_timer_suppress;
@@ -18,7 +33,8 @@ uint64_t fh_monotonic_nanos(void)
 
 static void fh_timer_expiry(struct k_timer *timer)
 {
-	ARG_UNUSED(timer);
+	struct fh_cpu_timer *cpu_timer =
+		CONTAINER_OF(timer, struct fh_cpu_timer, timer);
 #ifdef CONFIG_FREEHYPERVISOR_CONTRACT_TESTS
 	atomic_inc(&fh_timer_count);
 	atomic_set(&fh_timer_last_fire, (atomic_val_t)fh_monotonic_nanos());
@@ -26,22 +42,106 @@ static void fh_timer_expiry(struct k_timer *timer)
 		return;
 	}
 #endif
+	if (atomic_get(&fh_timer_stopping) != 0) {
+		return;
+	}
+
+	atomic_set(&cpu_timer->expired_generation,
+		   atomic_get(&cpu_timer->arm_generation));
+	if (atomic_inc(&cpu_timer->retry_count) + 1 >= FH_TIMER_KICK_RETRIES) {
+		k_timer_stop(timer);
+	}
+	(void)k_work_submit(&cpu_timer->work);
+}
+
+static void fh_timer_work(struct k_work *work)
+{
+	struct fh_cpu_timer *cpu_timer =
+		CONTAINER_OF(work, struct fh_cpu_timer, work);
+	atomic_val_t generation;
+	atomic_val_t delivered;
+
+	if (atomic_get(&fh_timer_stopping) != 0) {
+		return;
+	}
+
+	generation = atomic_get(&cpu_timer->expired_generation);
+	if (generation != atomic_get(&cpu_timer->arm_generation)) {
+		return;
+	}
+
 #ifdef CONFIG_FREEHYPERVISOR_CORE
-	fh_rust_timer_expired();
+	delivered = atomic_get(&cpu_timer->callback_generation);
+	if (delivered != generation &&
+	    atomic_cas(&cpu_timer->callback_generation, delivered, generation)) {
+		/* Rust timer handling can take locks, so it must run in thread context. */
+		fh_rust_timer_expired();
+	}
+#else
+	ARG_UNUSED(delivered);
+#endif
+
+#ifdef CONFIG_FREEHYPERVISOR_DEDICATED_IPI
+	/*
+	 * Zephyr k_timer callbacks may execute on a different CPU from the
+	 * caller that armed the timer.  The Core uses this one-shot as a
+	 * bounded VM-exit poll point (for example, to inject a due virtual
+	 * PIT tick).  Always send the dedicated IPI to the owning CPU: an
+	 * outer hypervisor may service the physical timer transparently and
+	 * resume nested execution without reporting an SVM/VMX interrupt exit
+	 * to this Core, even when the callback happened on the same pCPU.
+	 */
+	(void)fh_hv_ipi_send(cpu_timer->target_cpu);
+	if (atomic_cas(&fh_timer_kick_reported, 0, 1)) {
+		printk("FH: timer VM-exit kick target_cpu=%u callback_cpu=%zu\n",
+		       cpu_timer->target_cpu, fh_current_cpu_id());
+	}
 #endif
 }
 
 int fh_time_init(void)
 {
-	k_timer_init(&fh_oneshot, fh_timer_expiry, NULL);
+	for (unsigned int cpu = 0; cpu < ARRAY_SIZE(fh_oneshot); ++cpu) {
+		fh_oneshot[cpu].target_cpu = cpu;
+		k_timer_init(&fh_oneshot[cpu].timer, fh_timer_expiry, NULL);
+		k_work_init(&fh_oneshot[cpu].work, fh_timer_work);
+		atomic_set(&fh_oneshot[cpu].callback_generation, -1);
+	}
 	return 0;
+}
+
+void fh_time_shutdown(void)
+{
+	struct k_work_sync sync;
+
+	atomic_set(&fh_timer_stopping, 1);
+	for (unsigned int cpu = 0; cpu < ARRAY_SIZE(fh_oneshot); ++cpu) {
+		k_timer_stop(&fh_oneshot[cpu].timer);
+		(void)k_work_cancel_sync(&fh_oneshot[cpu].work, &sync);
+	}
 }
 
 void fh_set_oneshot_timer(uint64_t deadline_ns)
 {
+	unsigned int cpu = (unsigned int)fh_current_cpu_id();
 	uint64_t now = fh_monotonic_nanos();
 	uint64_t delay = deadline_ns > now ? deadline_ns - now : 1;
-	k_timer_start(&fh_oneshot, K_NSEC(delay), K_NO_WAIT);
+
+	if (cpu >= ARRAY_SIZE(fh_oneshot)) {
+		cpu = 0;
+	}
+	atomic_inc(&fh_oneshot[cpu].arm_generation);
+	atomic_set(&fh_oneshot[cpu].retry_count, 0);
+#ifdef CONFIG_FREEHYPERVISOR_CORE
+	/*
+	 * The callback is one-shot per generation.  The 1 ms period only retries
+	 * the dedicated VM-exit kick when an outer hypervisor consumed an IPI
+	 * outside the narrow VMRUN window.
+	 */
+	k_timer_start(&fh_oneshot[cpu].timer, K_NSEC(delay), K_MSEC(1));
+#else
+	k_timer_start(&fh_oneshot[cpu].timer, K_NSEC(delay), K_NO_WAIT);
+#endif
 }
 
 #ifdef CONFIG_FREEHYPERVISOR_CONTRACT_TESTS

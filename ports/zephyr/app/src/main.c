@@ -339,6 +339,7 @@ int main(void)
 	k_thread_start(kick);
 #endif
 	fh_rust_run();
+	fh_time_shutdown();
 #if defined(CONFIG_FREEHYPERVISOR_MODE_KICK)
 	k_thread_join(&kick_thread, K_FOREVER);
 	bool kick_pass = fh_hv_ipi_count() > 0 && fh_hv_ipi_last_cpu() == 0;

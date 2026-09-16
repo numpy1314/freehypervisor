@@ -4,6 +4,7 @@ source "$(dirname "$0")/common.sh"
 
 mode="${1:-contract}"
 rust_lib=""
+dts_overlay=""
 
 case "$mode" in
     contract|lifetime|probe)
@@ -25,8 +26,13 @@ case "$mode" in
         overlay="$FH_REPO_ROOT/ports/zephyr/app/core.conf"
         rust_lib="$("$FH_REPO_ROOT/scripts/zephyr/build-rust.sh" native | tail -1)"
         ;;
+    linux)
+        overlay="$FH_REPO_ROOT/ports/zephyr/app/linux.conf"
+        dts_overlay="$FH_REPO_ROOT/ports/zephyr/app/linux.overlay"
+        rust_lib="$("$FH_REPO_ROOT/scripts/zephyr/build-rust.sh" linux | tail -1)"
+        ;;
     *)
-        echo "usage: $0 {contract|lifetime|probe|core|kick|smp|native}" >&2
+        echo "usage: $0 {contract|lifetime|probe|core|kick|smp|native|linux}" >&2
         exit 1
         ;;
 esac
@@ -37,6 +43,9 @@ cmake_args=(
 )
 if [[ -n "$rust_lib" ]]; then
     cmake_args+=("-DFREEHYPERVISOR_RUST_LIB=$rust_lib")
+fi
+if [[ -n "$dts_overlay" ]]; then
+    cmake_args+=("-DDTC_OVERLAY_FILE=$dts_overlay")
 fi
 
 final_dir="$FH_BUILD_ROOT/$mode"

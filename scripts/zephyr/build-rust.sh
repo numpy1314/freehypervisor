@@ -4,7 +4,11 @@ source "$(dirname "$0")/common.sh"
 
 profile="${1:-single}"
 "$FH_REPO_ROOT/scripts/zephyr/prepare-core.sh"
-"$FH_REPO_ROOT/scripts/zephyr/build-guests.sh"
+if [[ "$profile" == "linux" ]]; then
+    "$FH_REPO_ROOT/scripts/zephyr/build-linux-guest.sh"
+else
+    "$FH_REPO_ROOT/scripts/zephyr/build-guests.sh"
+fi
 
 case "$profile" in
     single)
@@ -18,6 +22,9 @@ case "$profile" in
         ;;
     native)
         configs="$FH_BUILD_ROOT/guests/vm-native.toml"
+        ;;
+    linux)
+        configs="$FH_BUILD_ROOT/guests/vm-linux-tcg.toml"
         ;;
     *)
         echo "unknown Rust profile: $profile" >&2

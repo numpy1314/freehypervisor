@@ -51,6 +51,7 @@ void fh_wait_queue_wake_all(size_t queue);
 
 uint64_t fh_monotonic_nanos(void);
 void fh_set_oneshot_timer(uint64_t deadline_ns);
+void fh_time_shutdown(void);
 
 bool fh_irq_handle(size_t vector);
 bool fh_irq_register(size_t vector, fh_irq_fn handler);

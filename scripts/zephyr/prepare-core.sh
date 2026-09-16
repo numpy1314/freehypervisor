@@ -2,11 +2,9 @@
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
-destination="$FH_BUILD_ROOT/core-src"
+destination="$FH_BUILD_ROOT/core-src-audited"
 patch_dir="$FH_REPO_ROOT/ports/zephyr/patches"
-prepared="$(mktemp -d "$FH_BUILD_ROOT/core-src.prepare.XXXXXX")"
-stale_root="$(mktemp -d "$FH_BUILD_ROOT/core-src.stale.XXXXXX")"
-stale="$stale_root/core-src"
+prepared="$(mktemp -d "$FH_BUILD_ROOT/core-src-audited.prepare.XXXXXX")"
 
 if [[ ! -d "$FH_CORE_SOURCE/.git" ]]; then
     echo "Core source not found at $FH_CORE_SOURCE" >&2
@@ -20,7 +18,7 @@ if [[ "$actual_commit" != "$FH_CORE_COMMIT" ]]; then
 fi
 
 case "$prepared" in
-    "$FH_REPO_ROOT"/build/zephyr/core-src.prepare.*) ;;
+    "$FH_REPO_ROOT"/build/zephyr/core-src-audited.prepare.*) ;;
     *) echo "refusing unsafe preparation path: $prepared" >&2; exit 1 ;;
 esac
 
@@ -36,12 +34,19 @@ for patch_file in "$patch_dir"/*.patch; do
     git -C "$prepared" apply "$patch_file"
     echo "applied Core patch $(basename "$patch_file")"
 done
+expected_diff_sha="$(git -C "$prepared" diff --binary | sha256sum | awk '{print $1}')"
 if [[ -d "$destination" ]]; then
-    mv "$destination" "$stale"
+    # Preserve the destination inode tree so workspace file synchronizers do
+    # not resurrect files from an older generated Core after an atomic swap.
+    rsync -a --delete "$prepared/" "$destination/"
+    rm -rf "$prepared"
+else
+    mv "$prepared" "$destination"
 fi
-mv "$prepared" "$destination"
-if ! rm -rf "$stale_root"; then
-    echo "warning: stale generated Core tree remains at $stale_root" >&2
+actual_diff_sha="$(git -C "$destination" diff --binary | sha256sum | awk '{print $1}')"
+if [[ "$actual_diff_sha" != "$expected_diff_sha" ]]; then
+    echo "generated Core differs from the audited patch set" >&2
+    exit 1
 fi
 printf '%s\n' "$actual_commit" > "$FH_BUILD_ROOT/core-source-commit.txt"
 echo "prepared Core $actual_commit"

@@ -8,10 +8,10 @@ license = "Apache-2.0"
 crate-type = ["staticlib"]
 
 [dependencies]
-axvisor_core = { path = "../../../build/zephyr/core-src/virtualization/axvisor_core", default-features = false, features = ["svm"] }
-axvisor_api = { path = "../../../build/zephyr/core-src/virtualization/axvisor_api", default-features = false }
-ax-percpu = { path = "../../../build/zephyr/core-src/components/percpu/percpu", features = ["custom-base", "external-base", "non-zero-vma"] }
-ax-memory-addr = { path = "../../../build/zephyr/core-src/memory/memory_addr" }
+axvisor_core = { path = "../../../build/zephyr/core-src-audited/virtualization/axvisor_core", default-features = false, features = ["svm"] }
+axvisor_api = { path = "../../../build/zephyr/core-src-audited/virtualization/axvisor_api", default-features = false }
+ax-percpu = { path = "../../../build/zephyr/core-src-audited/components/percpu/percpu", features = ["custom-base", "external-base", "non-zero-vma"] }
+ax-memory-addr = { path = "../../../build/zephyr/core-src-audited/memory/memory_addr" }
 log = { version = "0.4", default-features = false }
 
 [profile.release]

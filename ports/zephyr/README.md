@@ -10,6 +10,8 @@ Quick start:
 ./scripts/zephyr/test-all.sh
 ```
 
+The default acceptance suite builds Linux 7.1.0-rc6 from the pinned Linux submodule, boots it through the unchanged Core's SVM/NPT path, requires a real userspace PID 1 PASS marker, and verifies clean SystemDown/vCPU/SVM teardown. The older micro-Guest scripts remain supplemental race and oversubscription regressions; they are not the VM-execution acceptance criterion.
+
 Native hardware status is intentionally separate:
 
 ```sh

@@ -4,17 +4,17 @@ The canonical machine-generated figures are in `artifacts/zephyr/loc-report.txt`
 
 | Category | Cost | Notes |
 |---|---:|---|
-| Hypervisor Core | 4 modified files, `+62/-18` (net `+44`) | Three host-neutral patches; no new contract operation and no Zephyr API in Core. |
-| Zephyr adapter | 1,316 lines at the recorded revision | C substrate, public C ABI header, and Rust `axvisor_api` bridge. |
+| Hypervisor Core | 8 modified files, `+114/-23` (net `+91`) | Five host-neutral patches; no new contract operation and no Zephyr API in Core. |
+| Zephyr adapter | 1,449 lines at the recorded revision | C substrate, public C ABI header, and Rust `axvisor_api` bridge. |
 | Zephyr kernel | 0 modified files / 0 lines | External module/application only. |
-| Build, Guest and validation integration | 1,616 lines at the recorded revision | Kconfig/CMake, app/baseline, tiny Guests and scripts. |
+| Build, Guest and validation integration | 1,962 lines at the recorded revision | Kconfig/CMake, app/baseline, Linux PID 1, configs and scripts. |
 | QEMU | one 15-line external patch | TCG-only real-mode NPT workaround; excluded from Core/Zephyr cost. |
 
 ## Where complexity landed
 
 | Area | Relative glue | Reason |
 |---|---|---|
-| Console/topology/time query | Low | Direct Zephyr primitive mapping. |
+| Console/topology/time query | Low | Direct Zephyr primitive mapping; expired timers defer Core work out of ISR context. |
 | Execution context | Medium | Opaque handles, dynamic stacks, affinity-before-start, completion and resource join. |
 | Blocking/wakeup | High | Correctness requires condition/install/recheck, generation tracking, stale-credit rejection and close/drain. |
 | Physical memory | High | The Core needs explicit physical ownership, contiguity, alignment, PA↔VA access and safe handoff, not ordinary heap memory. |

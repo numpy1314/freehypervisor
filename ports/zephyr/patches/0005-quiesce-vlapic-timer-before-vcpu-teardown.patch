@@ -1,0 +1,102 @@
+diff --git a/virtualization/axvisor_core/src/vmm/interrupt.rs b/virtualization/axvisor_core/src/vmm/interrupt.rs
+--- a/virtualization/axvisor_core/src/vmm/interrupt.rs
++++ b/virtualization/axvisor_core/src/vmm/interrupt.rs
+@@ -111,6 +111,10 @@ fn target_matches(target: VcpuInterruptTarget, vm: &VMRef, vcpu_id: usize) -> bo
+ /// back to the KVM host-control vCPU fd model when the VM is control-owned.
+ pub(crate) fn deliver_interrupt(route: InterruptRoute) {
++    if vmm::with_vm(route.vm_id, |vm| !vm.stopping() && !vm.stopped()) != Some(true) {
++        return;
++    }
++
+     if let Some(context) = crate::context::try_current_vcpu_context()
+         && context.vm_id == route.vm_id
+         && context.vcpu_id == route.vcpu_id
+         && let Some(()) = vmm::with_vm_and_vcpu(route.vm_id, route.vcpu_id, move |_, vcpu| {
+@@ -125,6 +129,12 @@ pub(crate) fn deliver_interrupt(route: InterruptRoute) {
+     }
+ 
+     if !queue_control_interrupt(route) {
++        // The VM may have crossed its close boundary between the first status
++        // check and removal of its vCPU queues. Late device events are dropped.
++        if vmm::with_vm(route.vm_id, |vm| !vm.stopping() && !vm.stopped()) != Some(true) {
++            return;
++        }
++
+         #[cfg(not(feature = "control"))]
+         warn!(
+             "Failed to queue interrupt {:?} to VM[{}] VCpu[{}]: VM vCPU resources not found",
+diff --git a/virtualization/axvisor_core/src/vmm/vcpus.rs b/virtualization/axvisor_core/src/vmm/vcpus.rs
+--- a/virtualization/axvisor_core/src/vmm/vcpus.rs
++++ b/virtualization/axvisor_core/src/vmm/vcpus.rs
+@@ -658,6 +658,11 @@ fn vcpu_run(vm_id: usize, vcpu_id: usize) {
+                 vm_id, vcpu_id
+             );
+ 
++            #[cfg(target_arch = "x86_64")]
++            if let Err(err) = vcpu.get_arch_vcpu().shutdown() {
++                warn!("VM[{vm_id}] VCpu[{vcpu_id}] failed to quiesce: {err:?}");
++            }
++
+             if mark_vcpu_exiting(vm_id) {
+                 info!("VM[{vm_id}] VCpu[{vcpu_id}] last VCpu exiting, decreasing running VM count");
+ 
+diff --git a/virtualization/x86_vcpu/src/svm/vcpu.rs b/virtualization/x86_vcpu/src/svm/vcpu.rs
+--- a/virtualization/x86_vcpu/src/svm/vcpu.rs
++++ b/virtualization/x86_vcpu/src/svm/vcpu.rs
+@@ -249,6 +249,11 @@ pub struct SvmVcpu {
+ }
+ 
+ impl SvmVcpu {
++    /// Quiesce asynchronous vCPU-owned devices before the VMM drops ownership.
++    pub fn shutdown(&mut self) -> AxResult {
++        self.vlapic.shutdown()
++    }
++
+     fn create(vm_id: VMId, vcpu_id: VCpuId, config: X86VCpuCreateConfig) -> AxResult<Self> {
+         let vcpu = Self {
+             guest_regs: GeneralRegisters::default(),
+diff --git a/virtualization/x86_vcpu/src/vmx/vcpu.rs b/virtualization/x86_vcpu/src/vmx/vcpu.rs
+--- a/virtualization/x86_vcpu/src/vmx/vcpu.rs
++++ b/virtualization/x86_vcpu/src/vmx/vcpu.rs
+@@ -245,6 +245,11 @@ pub struct VmxVcpu {
+ }
+ 
+ impl VmxVcpu {
++    /// Quiesce asynchronous vCPU-owned devices before the VMM drops ownership.
++    pub fn shutdown(&mut self) -> AxResult {
++        self.vlapic.shutdown()
++    }
++
+     /// Create a new [`VmxVcpu`].
+     pub fn new(vm_id: VMId, vcpu_id: VCpuId, config: X86VCpuCreateConfig) -> AxResult<Self> {
+         let vmcs_revision_id = super::read_vmcs_revision_id();
+diff --git a/virtualization/x86_vlapic/src/lib.rs b/virtualization/x86_vlapic/src/lib.rs
+--- a/virtualization/x86_vlapic/src/lib.rs
++++ b/virtualization/x86_vlapic/src/lib.rs
+@@ -66,6 +66,11 @@ impl EmulatedLocalApic {
+         }
+     }
+ 
++    /// Stop callbacks owned by this local APIC before its vCPU owner is removed.
++    pub fn shutdown(&self) -> AxResult {
++        self.get_mut_vlapic_regs().shutdown()
++    }
++
+     fn get_vlapic_regs(&self) -> &VirtualApicRegs {
+         unsafe { &*self.vlapic_regs.get() }
+     }
+diff --git a/virtualization/x86_vlapic/src/vlapic.rs b/virtualization/x86_vlapic/src/vlapic.rs
+--- a/virtualization/x86_vlapic/src/vlapic.rs
++++ b/virtualization/x86_vlapic/src/vlapic.rs
+@@ -98,6 +98,11 @@ pub struct VlapicCpuUp {
+ }
+ 
+ impl VirtualApicRegs {
++    /// Stop callbacks owned by this vLAPIC before its vCPU owner is removed.
++    pub fn shutdown(&mut self) -> AxResult {
++        self.virtual_timer.stop_timer()
++    }
++
+     /// Create new virtual-APIC registers by allocating a 4-KByte page for the virtual-APIC page.
+     pub fn new(vm_id: VMId, vcpu_id: VCpuId) -> Self {
+         let apic_frame = PhysFrame::alloc_zero().expect("allocate virtual-APIC page failed");

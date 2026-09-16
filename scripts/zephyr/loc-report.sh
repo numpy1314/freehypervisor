@@ -3,6 +3,7 @@ set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
 report="$FH_ARTIFACTS/loc-report.txt"
+core_tree="$FH_BUILD_ROOT/core-src-audited"
 adapter_files=(
     ports/zephyr/src
     ports/zephyr/include
@@ -23,16 +24,28 @@ count_lines() {
     find "$@" -type f -print0 2>/dev/null | xargs -0 cat 2>/dev/null | wc -l
 }
 
+"$FH_REPO_ROOT/scripts/zephyr/prepare-core.sh" >/dev/null
+core_modified_files="$(git -C "$core_tree" diff --name-only | wc -l)"
+read -r core_added_lines core_removed_lines < <(
+    git -C "$core_tree" diff --numstat |
+        awk '{ added += $1; removed += $2 } END { print added + 0, removed + 0 }'
+)
+core_net_lines=$((core_added_lines - core_removed_lines))
+core_patches="$(find "$FH_REPO_ROOT/ports/zephyr/patches" -maxdepth 1 \
+    -type f -name '*.patch' -printf '%f\n' | sort | paste -sd, -)"
+qemu_patches="$(find "$FH_REPO_ROOT/ports/zephyr/qemu" -maxdepth 1 \
+    -type f -name '*.patch' -printf '%f\n' | sort | paste -sd, -)"
+
 {
-    echo "core_modified_files=4"
-    echo "core_added_lines=62"
-    echo "core_removed_lines=18"
-    echo "core_net_lines=44"
+    echo "core_modified_files=$core_modified_files"
+    echo "core_added_lines=$core_added_lines"
+    echo "core_removed_lines=$core_removed_lines"
+    echo "core_net_lines=$core_net_lines"
     echo "zephyr_kernel_modified_files=0"
     echo "zephyr_kernel_modified_lines=0"
     echo "adapter_loc=$(cd "$FH_REPO_ROOT" && count_lines "${adapter_files[@]}")"
     echo "build_test_integration_loc=$(cd "$FH_REPO_ROOT" && count_lines "${integration_files[@]}")"
-    echo "core_patches=0001-publish-primary-vcpu-before-spawn.patch,0002-svm-validate-address-size-only-for-string-io.patch,0003-static-mode-join-tasks-and-disable-virtualization.patch"
-    echo "qemu_tcg_patch=0001-tcg-svm-apply-npt-to-nonpaging-guests.patch"
+    echo "core_patches=$core_patches"
+    echo "qemu_tcg_patches=$qemu_patches"
 } > "$report"
 cat "$report"

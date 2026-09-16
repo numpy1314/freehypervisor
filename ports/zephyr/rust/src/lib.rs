@@ -405,7 +405,7 @@ pub extern "C" fn fh_rust_init() -> i32 {
         return -1;
     }
     let _ = log::set_logger(&LOGGER);
-    log::set_max_level(log::LevelFilter::Debug);
+    log::set_max_level(log::LevelFilter::Info);
     0
 }
 

@@ -48,10 +48,12 @@ fh_run_qemu() {
     local cpu="${3:-max}"
     local accel="${4:-tcg}"
     local timeout_seconds="${FH_QEMU_TIMEOUT:-45}"
+    local memory_mb="${FH_QEMU_MEMORY_MB:-64}"
     local zephyr_dir
     local build_dir
     local locore
     local main_image
+    local -a qemu_args
 
     fh_require_file "$elf"
     zephyr_dir="$(dirname "$elf")"
@@ -61,20 +63,27 @@ fh_run_qemu() {
     main_image="$zephyr_dir/zephyr-qemu-main.elf"
     fh_require_file "$locore"
     fh_require_file "$main_image"
+    qemu_args=(
+        -machine q35
+        -accel "$accel"
+        -cpu "$cpu,mmx,mmxext,sse,sse2"
+        -smp cpus=2
+        -m "${memory_mb}M"
+        -nographic
+        -no-reboot
+        -machine acpi=off
+        -net none
+    )
+    if [[ "${FH_QEMU_DEBUG_EXIT:-1}" != 0 ]]; then
+        qemu_args+=(-device isa-debug-exit,iobase=0xf4,iosize=0x04)
+    fi
+    qemu_args+=(
+        -device "loader,file=$main_image"
+        -kernel "$locore"
+    )
     set +e
     timeout --signal=TERM "$timeout_seconds" \
-        "$FH_QEMU" \
-        -machine "q35,accel=$accel" \
-        -cpu "$cpu,mmx,mmxext,sse,sse2" \
-        -smp cpus=2 \
-        -m 64M \
-        -nographic \
-        -no-reboot \
-        -machine acpi=off \
-        -net none \
-        -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
-        -device "loader,file=$main_image" \
-        -kernel "$locore" 2>&1 | tee "$log"
+        "$FH_QEMU" "${qemu_args[@]}" 2>&1 | tee "$log"
     local qemu_status="${PIPESTATUS[0]}"
     set -e
 

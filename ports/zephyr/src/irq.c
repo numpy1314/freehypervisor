@@ -15,8 +15,16 @@ extern void (*x86_irq_funcs[FH_VECTOR_COUNT])(const void *arg);
 extern const void *x86_irq_args[FH_VECTOR_COUNT];
 
 static fh_irq_fn fh_irq_handlers[FH_IRQ_SLOTS];
+static void (*fh_spurious_irq_handler)(const void *arg);
 static atomic_t fh_ipi_counter;
 static atomic_t fh_ipi_cpu;
+
+static void fh_registered_irq_isr(const void *arg)
+{
+	size_t vector = (size_t)(uintptr_t)arg;
+
+	(void)fh_irq_handle(vector);
+}
 
 bool fh_irq_handle(size_t vector)
 {
@@ -29,11 +37,21 @@ bool fh_irq_handle(size_t vector)
 
 bool fh_irq_register(size_t vector, fh_irq_fn handler)
 {
-	if (vector >= ARRAY_SIZE(fh_irq_handlers) || handler == NULL ||
-	    fh_irq_handlers[vector] != NULL) {
+	if (vector < FH_FIRST_VECTOR || vector >= ARRAY_SIZE(fh_irq_handlers) ||
+	    handler == NULL || fh_irq_handlers[vector] != NULL ||
+	    fh_spurious_irq_handler == NULL) {
+		return false;
+	}
+
+	unsigned int key = irq_lock();
+	if (x86_irq_funcs[vector - FH_FIRST_VECTOR] != fh_spurious_irq_handler) {
+		irq_unlock(key);
 		return false;
 	}
 	fh_irq_handlers[vector] = handler;
+	x86_irq_funcs[vector - FH_FIRST_VECTOR] = fh_registered_irq_isr;
+	x86_irq_args[vector - FH_FIRST_VECTOR] = (const void *)(uintptr_t)vector;
+	irq_unlock(key);
 	return true;
 }
 
@@ -44,9 +62,16 @@ static void fh_hv_ipi_isr(const void *arg)
 	atomic_set(&fh_ipi_cpu, (atomic_val_t)cpu);
 	atomic_inc(&fh_ipi_counter);
 	(void)fh_irq_handle(CONFIG_FREEHYPERVISOR_IPI_VECTOR);
+#ifdef CONFIG_FREEHYPERVISOR_CONTRACT_TESTS
 	printk("FH: dedicated IPI vector=%d cpu=%u count=%lld\n",
 	       CONFIG_FREEHYPERVISOR_IPI_VECTOR, cpu,
 	       (long long)atomic_get(&fh_ipi_counter));
+#else
+	if (atomic_get(&fh_ipi_counter) == 1) {
+		printk("FH: first dedicated IPI received vector=%d cpu=%u\n",
+		       CONFIG_FREEHYPERVISOR_IPI_VECTOR, cpu);
+	}
+#endif
 }
 
 int fh_hv_ipi_init(void)
@@ -57,6 +82,13 @@ int fh_hv_ipi_init(void)
 		return -EINVAL;
 	}
 	unsigned int key = irq_lock();
+	/*
+	 * Zephyr initializes every unused x86 vector to the same private
+	 * spurious-IRQ handler.  Capture it before reserving our vectors so the
+	 * contract registration path can reject vectors already owned by the
+	 * kernel and install a real ISR only into free slots.
+	 */
+	fh_spurious_irq_handler = x86_irq_funcs[vector + 1 - FH_FIRST_VECTOR];
 	x86_irq_funcs[vector - FH_FIRST_VECTOR] = fh_hv_ipi_isr;
 	x86_irq_args[vector - FH_FIRST_VECTOR] = NULL;
 	irq_unlock(key);

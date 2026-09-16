@@ -1,0 +1,24 @@
+[base]
+id = 1
+name = "zephyr-minimal-native"
+vm_type = 1
+cpu_num = 1
+phys_cpu_sets = [1]
+
+[kernel]
+entry_point = 0
+image_location = "memory"
+kernel_path = "minimal.bin"
+kernel_load_addr = 0
+enable_bios = false
+boot_protocol = "direct"
+memory_regions = [
+  [0, 0x0020_0000, 0x7, 0],
+]
+
+[devices]
+interrupt_mode = "no_irq"
+emu_devices = []
+passthrough_devices = []
+passthrough_addresses = []
+excluded_devices = []

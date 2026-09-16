@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+Subject: [PATCH] vmm: publish primary vCPU registry before host task spawn
+
+Host runtimes may schedule a newly started task before spawn_task returns.
+Publish the VMVCpus owner first so the vCPU cannot observe a missing wait
+queue.  This is a host-neutral ordering fix and adds no substrate operation.
+---
+ virtualization/axvisor_core/src/vmm/vcpus.rs | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/virtualization/axvisor_core/src/vmm/vcpus.rs b/virtualization/axvisor_core/src/vmm/vcpus.rs
+index 59b5200..816cc0e 100644
+--- a/virtualization/axvisor_core/src/vmm/vcpus.rs
++++ b/virtualization/axvisor_core/src/vmm/vcpus.rs
+@@ -410,6 +410,7 @@ pub fn setup_vm_primary_vcpu(vm: VMRef) {
+         return;
+     }
+     let vm_vcpus = Arc::new(VMVCpus::new(vm.clone()));
++    VM_VCPU_TASKS.lock().insert(vm_id, vm_vcpus.clone());
+ 
+     let primary_vcpu_id = 0;
+ 
+@@ -418,8 +419,6 @@ pub fn setup_vm_primary_vcpu(vm: VMRef) {
+     };
+     let (primary_vcpu_task, task_name) = alloc_vcpu_task(&vm, primary_vcpu);
+     vm_vcpus.add_vcpu_task(0, primary_vcpu_task, task_name);
+-
+-    VM_VCPU_TASKS.lock().insert(vm_id, vm_vcpus);
+ }
+ 
+ /// Finds the task associated with the specified vCPU of the specified VM.
+-- 
+2.39.5

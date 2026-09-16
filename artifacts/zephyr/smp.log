@@ -1,0 +1,101 @@
+iteration=1 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=1 vm=2 vcpu=0 run=1 exit=1 block=0 wake=0 progress=1 result=PASS
+iteration=1 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=1 vm=4 vcpu=0 run=1 exit=1 block=0 wake=0 progress=1 result=PASS
+iteration=1 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=2 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=2 vm=2 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=2 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=2 vm=4 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=2 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=3 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=3 vm=2 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=3 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=3 vm=4 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=3 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=4 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=4 vm=2 vcpu=0 run=1 exit=1 block=0 wake=0 progress=1 result=PASS
+iteration=4 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=4 vm=4 vcpu=0 run=1 exit=1 block=0 wake=0 progress=1 result=PASS
+iteration=4 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=5 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=5 vm=2 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=5 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=5 vm=4 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=5 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=6 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=6 vm=2 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=6 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=6 vm=4 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=6 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=7 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=7 vm=2 vcpu=0 run=1 exit=1 block=0 wake=0 progress=1 result=PASS
+iteration=7 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=7 vm=4 vcpu=0 run=1 exit=1 block=0 wake=0 progress=1 result=PASS
+iteration=7 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=8 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=8 vm=2 vcpu=0 run=1 exit=1 block=0 wake=0 progress=1 result=PASS
+iteration=8 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=8 vm=4 vcpu=0 run=1 exit=1 block=0 wake=0 progress=1 result=PASS
+iteration=8 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=9 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=9 vm=2 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=9 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=9 vm=4 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=9 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=10 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=10 vm=2 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=10 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=10 vm=4 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=10 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=11 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=11 vm=2 vcpu=0 run=1 exit=1 block=0 wake=0 progress=1 result=PASS
+iteration=11 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=11 vm=4 vcpu=0 run=1 exit=1 block=0 wake=0 progress=1 result=PASS
+iteration=11 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=12 vm=1 vcpu=0 run=1 exit=1 block=0 wake=0 progress=1 result=PASS
+iteration=12 vm=2 vcpu=0 run=1 exit=1 block=0 wake=0 progress=1 result=PASS
+iteration=12 vm=3 vcpu=0 run=1 exit=1 block=0 wake=0 progress=1 result=PASS
+iteration=12 vm=4 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=12 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=13 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=13 vm=2 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=13 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=13 vm=4 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=13 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=14 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=14 vm=2 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=14 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=14 vm=4 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=14 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=15 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=15 vm=2 vcpu=0 run=1 exit=1 block=0 wake=0 progress=1 result=PASS
+iteration=15 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=15 vm=4 vcpu=0 run=1 exit=1 block=0 wake=0 progress=1 result=PASS
+iteration=15 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=16 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=16 vm=2 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=16 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=16 vm=4 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=16 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=17 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=17 vm=2 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=17 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=17 vm=4 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=17 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=18 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=18 vm=2 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=18 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=18 vm=4 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=18 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=19 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=19 vm=2 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=19 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=19 vm=4 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=19 vcpus=4 pcpus=2 completed=4 result=PASS
+iteration=20 vm=1 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=20 vm=2 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=20 vm=3 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=20 vm=4 vcpu=0 run=1 exit=1 block=1 wake=1 progress=1 result=PASS
+iteration=20 vcpus=4 pcpus=2 completed=4 result=PASS
+FH_SMP_RESULT=PASS

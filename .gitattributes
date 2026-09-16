@@ -1,0 +1,7 @@
+# Preserve raw QEMU serial transcripts, including CR line endings.
+artifacts/zephyr/*.log -text whitespace=-blank-at-eol,-blank-at-eof
+
+# These files contain nested mail-formatted diffs, whose context and signature
+# lines intentionally end in one space as required by patch syntax.
+ports/zephyr/patches/*.patch whitespace=-blank-at-eol
+ports/zephyr/qemu/*.patch whitespace=-blank-at-eol

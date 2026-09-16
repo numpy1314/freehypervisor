@@ -1,0 +1,37 @@
+c[?7l[2J[0mSeaBIOS (version rel-1.16.3-0-ga6ed6b701f0a-prebuilt.qemu.org)
+Booting from ROM..
+*** Booting Zephyr OS build v4.4.0 ***
+FH: Zephyr host adapter start cpus=2 current_cpu=0
+FH: reserved pool PA [0x200000, 0x1200000) VA=0x200000 pages=4096
+FH: dedicated IPI vector=240 scheduler=34 tlb=35
+FH_TEST contract begin
+FH_TEST platform cpus=2 current=0 tsc_mhz=25 console-read=0 PASS
+FH: alloc seq=1 PA=0x200000 pages=2 align_bytes=8192
+FH_TEST memory round-trip PASS
+FH: task create handle=1 name=contract-task mask=0x2
+FH_TASK_STATS handle=1 name=contract-task run=1 exit=1 block=0 wake=0 yield=1
+FH_TEST execution context cpu=1 handle=1 PASS
+FH_TEST irq register/dispatch vector=241 PASS
+FH_TEST publish-before-install PASS
+FH: task create handle=2 name=window-wait mask=0x2
+FH_TASK_STATS handle=2 name=window-wait run=1 exit=1 block=0 wake=0 yield=0
+FH_TEST post-install/pre-sleep PASS
+FH: task create handle=3 name=stale-credit mask=0x2
+FH_TASK_STATS handle=3 name=stale-credit run=1 exit=1 block=1 wake=1 yield=0
+FH_TEST stale-credit rejection PASS
+FH: task create handle=4 name=wake-all-a mask=0x1
+FH: task create handle=5 name=wake-all-b mask=0x2
+FH_TASK_STATS handle=4 name=wake-all-a run=1 exit=1 block=1 wake=1 yield=0
+FH_TASK_STATS handle=5 name=wake-all-b run=1 exit=1 block=1 wake=1 yield=0
+FH_TEST wake-all PASS
+FH: task create handle=6 name=close-drain mask=0x2
+FH_TASK_STATS handle=6 name=close-drain run=1 exit=1 block=1 wake=1 yield=0
+FH_TEST close/drain PASS
+FH_TEST absolute one-shot timer deadline=125000000 fired=130000000 count=1 PASS
+FH: alloc seq=2 PA=0x200000 pages=4096 align_bytes=4096
+FH: task create handle=7 name=paused-free mask=0x2
+FH_TASK_STATS handle=7 name=paused-free run=1 exit=1 block=0 wake=0 yield=0
+FH: alloc seq=3 PA=0x200000 pages=1 align_bytes=4096
+FH_TEST free/reallocate ownership handoff PASS
+FH_TEST contract result=PASS
+FH_RESULT contract result=PASS

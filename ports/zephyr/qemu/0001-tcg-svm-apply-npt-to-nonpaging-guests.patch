@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+Subject: [PATCH] target/i386: apply SVM NPT to non-paging L2 guests
+
+SVM nested paging translates L2 guest physical addresses regardless of
+whether the L2 guest has CR0.PG set.  QEMU 8.2.2 TCG only enters its stage-2
+walk from the guest-paging branch, causing a real-mode L2 to execute host
+physical address zero instead of its NPT mapping.  Add the missing direct
+stage-2 walk.  This is the pre-PG_MODE_PG equivalent of current QEMU's
+mmu_translate non-paging path.
+---
+ target/i386/tcg/sysemu/excp_helper.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/target/i386/tcg/sysemu/excp_helper.c b/target/i386/tcg/sysemu/excp_helper.c
+--- a/target/i386/tcg/sysemu/excp_helper.c
++++ b/target/i386/tcg/sysemu/excp_helper.c
+@@ -577,6 +577,21 @@ static bool get_physical_address(CPUX86State *env, vaddr addr,
+                 }
+             }
+             return mmu_translate(env, &in, out, err);
++        } else if (use_stage2) {
++            /*
++             * A non-paging L2 guest still needs its guest physical address
++             * translated through NPT.  This is the pre-PG_MODE_PG equivalent
++             * of the current upstream QEMU stage2 path.
++             */
++            in.cr3 = env->nested_cr3;
++            in.pg_mode = env->nested_pg_mode;
++            in.mmu_idx = MMU_USER_IDX;
++            in.ptw_idx = MMU_PHYS_IDX;
++            if (!mmu_translate(env, &in, out, err)) {
++                err->stage2 = S2_GPA;
++                return false;
++            }
++            return true;
+         }
+         break;
+     }
+-- 
+2.39.5

@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+Subject: [PATCH] svm: validate address size only for string I/O
+
+The SVM EXITINFO1 address-size field is meaningful only when the STR bit is
+set.  QEMU and hardware are allowed to leave it zero for scalar IN/OUT, so do
+not reject an otherwise valid scalar I/O exit.  This is a host-neutral SVM
+correctness fix and adds no substrate operation.
+---
+ virtualization/x86_vcpu/src/svm/vcpu.rs | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/virtualization/x86_vcpu/src/svm/vcpu.rs b/virtualization/x86_vcpu/src/svm/vcpu.rs
+--- a/virtualization/x86_vcpu/src/svm/vcpu.rs
++++ b/virtualization/x86_vcpu/src/svm/vcpu.rs
+@@ -1106,11 +1106,15 @@ impl SvmVcpu {
+         let width = AccessWidth::try_from(info.get_bits(4..7) as usize)
+             .map_err(|_| ax_err_type!(InvalidData, "invalid SVM IOIO access width"))?;
+         let port = Port(info.get_bits(16..32) as u16);
+-        let address_size = match info.get_bits(7..10) {
+-            1 => 16,
+-            2 => 32,
+-            4 => 64,
+-            _ => return ax_err!(InvalidData, "invalid SVM IOIO address size"),
++        let address_size = if is_string {
++            match info.get_bits(7..10) {
++                1 => 16,
++                2 => 32,
++                4 => 64,
++                _ => return ax_err!(InvalidData, "invalid SVM IOIO address size"),
++            }
++        } else {
++            0
+         };
+         Ok((is_in, is_string, is_repeat, width, port, address_size))
+     }
+-- 
+2.39.5

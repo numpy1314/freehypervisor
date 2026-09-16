@@ -1,0 +1,338 @@
+c[?7l[2J[0mSeaBIOS (version rel-1.16.3-0-ga6ed6b701f0a-prebuilt.qemu.org)
+Booting from ROM..
+*** Booting Zephyr OS build v4.4.0 ***
+FH: Zephyr host adapter start cpus=2 current_cpu=0
+FH: reserved pool PA [0x200000, 0x1200000) VA=0x200000 pages=4096
+FH: dedicated IPI vector=240 scheduler=34 tlb=35
+FH_PROBE vendor=AuthenticAMD max_basic=0xd
+FH_PROBE CPUID.80000001h.ECX=0x177 SVM=yes
+FH_PROBE SVM revision=1 ASIDs=16 features=0x10010001 NPT=yes
+FH_PROBE EFER=0xd01 VM_CR=0x0 VM_HSAVE_PA=0x0
+FH_PROBE SVM_AVAILABLE=PASS
+FH: ax-percpu template=96 stride=128 cpus=2 base=0x1243740
+
+
+       d8888            888     888  d8b
+      d88888            888     888  Y8P
+     d88P888            888     888
+    d88P 888  888  888  Y88b   d88P  888  .d8888b    .d88b.   888d888
+   d88P  888  `Y8bd8P'   Y88b d88P   888  88K       d88""88b  888P"
+  d88P   888    X88K      Y88o88P    888  "Y8888b.  888  888  888
+ d8888888888  .d8""8b.     Y888P     888       X88  Y88..88P  888
+d88P     888  888  888      Y8P      888   88888P'   "Y88P"   888
+
+
+by AxVisor Team
+
+FH-CORE [INFO ] Starting virtualization...
+FH-CORE [INFO ] Hardware support: true
+FH-CORE [INFO ] Enabling hardware virtualization support on all cores...
+FH: task create handle=1 name=axvisor-init-cpu-0 mask=0x1
+FH: task create handle=2 name=axvisor-init-cpu-1 mask=0x2
+FH-CORE [INFO ] Waiting for all cores to enable hardware virtualization...
+FH-CORE [INFO ] Core 1 is initializing hardware virtualization support...
+FH-CORE [INFO ] Enabling hardware virtualization support on core 1
+FH-CORE [INFO ] Core 0 is initializing hardware virtualization support...
+FH-CORE [INFO ] Initing HV Timer...
+FH-CORE [INFO ] Enabling hardware virtualization support on core 0
+FH-CORE [INFO ] Initing HV Timer...
+FH: alloc seq=1 PA=0x200000 pages=1 align_bytes=4096
+FH: alloc seq=2 PA=0x201000 pages=1 align_bytes=4096
+FH-CORE [INFO ] [AxVM] succeeded to turn on SVM (HSAVE @ 0x201000).
+FH-CORE [INFO ] [AxVM] succeeded to turn on SVM (HSAVE @ 0x200000).
+FH-CORE [INFO ] Hardware virtualization support enabled on core 0
+FH-CORE [INFO ] Hardware virtualization support enabled on core 1
+FH_TASK_STATS handle=1 name=axvisor-init-cpu-0 run=1 exit=1 block=0 wake=0 yield=0
+FH_TASK_STATS handle=2 name=axvisor-init-cpu-1 run=1 exit=1 block=0 wake=0 yield=0
+FH-CORE [INFO ] All cores have enabled hardware virtualization support.
+FH-CORE [INFO ] Initializing VMM...
+FH-CORE [INFO ] Using static VM configs.
+FH-CORE [DEBUG] Initializing guest VM with config: "[base]\nid = 1\nname = \"zephyr-tcg-1\"\nvm_type = 1\ncpu_num = 1\nphys_cpu_sets = [0]\n\n[kernel]\nentry_point = 0\nimage_location = \"memory\"\nkernel_path = \"minimal.bin\"\nkernel_load_addr = 0\nenable_bios = false\nboot_protocol = \"direct\"\nmemory_regions = [\n  [0, 0x0020_0000, 0x7, 0],\n]\n\n[devices]\ninterrupt_mode = \"no_irq\"\nemu_devices = []\npassthrough_devices = []\npassthrough_addresses = []\nexcluded_devices = []\n"
+FH-CORE [DEBUG] Not an x86 Linux bzImage: Truncated { offset: 510, size: 2, image_size: 45 }
+FH-CORE [INFO ] Creating VM[1] "zephyr-tcg-1"
+FH: alloc seq=3 PA=0x202000 pages=1 align_bytes=4096
+FH-CORE [INFO ] VM created: id=1
+FH: alloc seq=4 PA=0x400000 pages=512 align_bytes=2097152
+FH-CORE [DEBUG] map_linear: [GPA:0x0, GPA:0x200000) -> [PA:0x400000, PA:0x600000) READ | WRITE | EXECUTE | USER
+FH: alloc seq=5 PA=0x203000 pages=1 align_bytes=4096
+FH: alloc seq=6 PA=0x204000 pages=1 align_bytes=4096
+FH-CORE [INFO ] VM[1] created success, loading images...
+FH-CORE [INFO ] Loading VM[1] images into memory region: gpa=GPA:0x0, hva=VA:0x400000, size=2 MiB
+FH-CORE [INFO ] Loading VM[1] images from memory
+FH-CORE [DEBUG] Not an x86 Linux bzImage: Truncated { offset: 510, size: 2, image_size: 45 }
+FH-CORE [DEBUG] loading VM image from memory GPA:0x0 45
+FH-CORE [DEBUG] start GPA:0x0 end GPA:0x2d area size 0x200000
+FH-CORE [DEBUG] copy size: 45
+FH-CORE [INFO ] dtb_load_gpa not provided
+FH-CORE [INFO ] dtb_load_gpa: None
+FH-CORE [DEBUG] id: 1, VCpuIdPCpuSets: [
+    (
+        0x0,
+        Some(
+            0x0,
+        ),
+        0x0,
+    ),
+]
+FH: alloc seq=7 PA=0x205000 pages=1 align_bytes=4096
+FH: alloc seq=8 PA=0x206000 pages=1 align_bytes=4096
+FH: alloc seq=9 PA=0x207000 pages=3 align_bytes=4096
+FH: alloc seq=10 PA=0x20a000 pages=2 align_bytes=4096
+FH: alloc seq=11 PA=0x20c000 pages=1 align_bytes=4096
+FH-CORE [INFO ] [HV] created SvmVcpu(vmcb: PA:0x205000)
+FH-CORE [DEBUG] Setting up vCPU[0] entry at GPA:0x0
+FH-CORE [INFO ] VM setup: id=1
+FH-CORE [DEBUG] Initializing guest VM with config: "[base]\nid = 2\nname = \"zephyr-tcg-2\"\nvm_type = 1\ncpu_num = 1\nphys_cpu_sets = [1]\n\n[kernel]\nentry_point = 0\nimage_location = \"memory\"\nkernel_path = \"minimal.bin\"\nkernel_load_addr = 0\nenable_bios = false\nboot_protocol = \"direct\"\nmemory_regions = [\n  [0, 0x0020_0000, 0x7, 0],\n]\n\n[devices]\ninterrupt_mode = \"no_irq\"\nemu_devices = []\npassthrough_devices = []\npassthrough_addresses = []\nexcluded_devices = []\n"
+FH-CORE [DEBUG] Not an x86 Linux bzImage: Truncated { offset: 510, size: 2, image_size: 45 }
+FH-CORE [INFO ] Creating VM[2] "zephyr-tcg-2"
+FH: alloc seq=12 PA=0x20d000 pages=1 align_bytes=4096
+FH-CORE [INFO ] VM created: id=2
+FH: alloc seq=13 PA=0x600000 pages=512 align_bytes=2097152
+FH-CORE [DEBUG] map_linear: [GPA:0x0, GPA:0x200000) -> [PA:0x600000, PA:0x800000) READ | WRITE | EXECUTE | USER
+FH: alloc seq=14 PA=0x20e000 pages=1 align_bytes=4096
+FH: alloc seq=15 PA=0x20f000 pages=1 align_bytes=4096
+FH-CORE [INFO ] VM[2] created success, loading images...
+FH-CORE [INFO ] Loading VM[2] images into memory region: gpa=GPA:0x0, hva=VA:0x600000, size=2 MiB
+FH-CORE [INFO ] Loading VM[2] images from memory
+FH-CORE [DEBUG] Not an x86 Linux bzImage: Truncated { offset: 510, size: 2, image_size: 45 }
+FH-CORE [DEBUG] loading VM image from memory GPA:0x0 45
+FH-CORE [DEBUG] start GPA:0x0 end GPA:0x2d area size 0x200000
+FH-CORE [DEBUG] copy size: 45
+FH-CORE [INFO ] dtb_load_gpa not provided
+FH-CORE [INFO ] dtb_load_gpa: None
+FH-CORE [DEBUG] id: 2, VCpuIdPCpuSets: [
+    (
+        0x0,
+        Some(
+            0x1,
+        ),
+        0x0,
+    ),
+]
+FH: alloc seq=16 PA=0x210000 pages=1 align_bytes=4096
+FH: alloc seq=17 PA=0x211000 pages=1 align_bytes=4096
+FH: alloc seq=18 PA=0x212000 pages=3 align_bytes=4096
+FH: alloc seq=19 PA=0x215000 pages=2 align_bytes=4096
+FH: alloc seq=20 PA=0x217000 pages=1 align_bytes=4096
+FH-CORE [INFO ] [HV] created SvmVcpu(vmcb: PA:0x210000)
+FH-CORE [DEBUG] Setting up vCPU[0] entry at GPA:0x0
+FH-CORE [INFO ] VM setup: id=2
+FH-CORE [DEBUG] Initializing guest VM with config: "[base]\nid = 3\nname = \"zephyr-tcg-3\"\nvm_type = 1\ncpu_num = 1\nphys_cpu_sets = [0]\n\n[kernel]\nentry_point = 0\nimage_location = \"memory\"\nkernel_path = \"minimal.bin\"\nkernel_load_addr = 0\nenable_bios = false\nboot_protocol = \"direct\"\nmemory_regions = [\n  [0, 0x0020_0000, 0x7, 0],\n]\n\n[devices]\ninterrupt_mode = \"no_irq\"\nemu_devices = []\npassthrough_devices = []\npassthrough_addresses = []\nexcluded_devices = []\n"
+FH-CORE [DEBUG] Not an x86 Linux bzImage: Truncated { offset: 510, size: 2, image_size: 45 }
+FH-CORE [INFO ] Creating VM[3] "zephyr-tcg-3"
+FH: alloc seq=21 PA=0x218000 pages=1 align_bytes=4096
+FH-CORE [INFO ] VM created: id=3
+FH: alloc seq=22 PA=0x800000 pages=512 align_bytes=2097152
+FH-CORE [DEBUG] map_linear: [GPA:0x0, GPA:0x200000) -> [PA:0x800000, PA:0xa00000) READ | WRITE | EXECUTE | USER
+FH: alloc seq=23 PA=0x219000 pages=1 align_bytes=4096
+FH: alloc seq=24 PA=0x21a000 pages=1 align_bytes=4096
+FH-CORE [INFO ] VM[3] created success, loading images...
+FH-CORE [INFO ] Loading VM[3] images into memory region: gpa=GPA:0x0, hva=VA:0x800000, size=2 MiB
+FH-CORE [INFO ] Loading VM[3] images from memory
+FH-CORE [DEBUG] Not an x86 Linux bzImage: Truncated { offset: 510, size: 2, image_size: 45 }
+FH-CORE [DEBUG] loading VM image from memory GPA:0x0 45
+FH-CORE [DEBUG] start GPA:0x0 end GPA:0x2d area size 0x200000
+FH-CORE [DEBUG] copy size: 45
+FH-CORE [INFO ] dtb_load_gpa not provided
+FH-CORE [INFO ] dtb_load_gpa: None
+FH-CORE [DEBUG] id: 3, VCpuIdPCpuSets: [
+    (
+        0x0,
+        Some(
+            0x0,
+        ),
+        0x0,
+    ),
+]
+FH: alloc seq=25 PA=0x21b000 pages=1 align_bytes=4096
+FH: alloc seq=26 PA=0x21c000 pages=1 align_bytes=4096
+FH: alloc seq=27 PA=0x21d000 pages=3 align_bytes=4096
+FH: alloc seq=28 PA=0x220000 pages=2 align_bytes=4096
+FH: alloc seq=29 PA=0x222000 pages=1 align_bytes=4096
+FH-CORE [INFO ] [HV] created SvmVcpu(vmcb: PA:0x21b000)
+FH-CORE [DEBUG] Setting up vCPU[0] entry at GPA:0x0
+FH-CORE [INFO ] VM setup: id=3
+FH-CORE [DEBUG] Initializing guest VM with config: "[base]\nid = 4\nname = \"zephyr-tcg-4\"\nvm_type = 1\ncpu_num = 1\nphys_cpu_sets = [1]\n\n[kernel]\nentry_point = 0\nimage_location = \"memory\"\nkernel_path = \"minimal.bin\"\nkernel_load_addr = 0\nenable_bios = false\nboot_protocol = \"direct\"\nmemory_regions = [\n  [0, 0x0020_0000, 0x7, 0],\n]\n\n[devices]\ninterrupt_mode = \"no_irq\"\nemu_devices = []\npassthrough_devices = []\npassthrough_addresses = []\nexcluded_devices = []\n"
+FH-CORE [DEBUG] Not an x86 Linux bzImage: Truncated { offset: 510, size: 2, image_size: 45 }
+FH-CORE [INFO ] Creating VM[4] "zephyr-tcg-4"
+FH: alloc seq=30 PA=0x223000 pages=1 align_bytes=4096
+FH-CORE [INFO ] VM created: id=4
+FH: alloc seq=31 PA=0xa00000 pages=512 align_bytes=2097152
+FH-CORE [DEBUG] map_linear: [GPA:0x0, GPA:0x200000) -> [PA:0xa00000, PA:0xc00000) READ | WRITE | EXECUTE | USER
+FH: alloc seq=32 PA=0x224000 pages=1 align_bytes=4096
+FH: alloc seq=33 PA=0x225000 pages=1 align_bytes=4096
+FH-CORE [INFO ] VM[4] created success, loading images...
+FH-CORE [INFO ] Loading VM[4] images into memory region: gpa=GPA:0x0, hva=VA:0xa00000, size=2 MiB
+FH-CORE [INFO ] Loading VM[4] images from memory
+FH-CORE [DEBUG] Not an x86 Linux bzImage: Truncated { offset: 510, size: 2, image_size: 45 }
+FH-CORE [DEBUG] loading VM image from memory GPA:0x0 45
+FH-CORE [DEBUG] start GPA:0x0 end GPA:0x2d area size 0x200000
+FH-CORE [DEBUG] copy size: 45
+FH-CORE [INFO ] dtb_load_gpa not provided
+FH-CORE [INFO ] dtb_load_gpa: None
+FH-CORE [DEBUG] id: 4, VCpuIdPCpuSets: [
+    (
+        0x0,
+        Some(
+            0x1,
+        ),
+        0x0,
+    ),
+]
+FH: alloc seq=34 PA=0x226000 pages=1 align_bytes=4096
+FH: alloc seq=35 PA=0x227000 pages=1 align_bytes=4096
+FH: alloc seq=36 PA=0x228000 pages=3 align_bytes=4096
+FH: alloc seq=37 PA=0x22b000 pages=2 align_bytes=4096
+FH: alloc seq=38 PA=0x22d000 pages=1 align_bytes=4096
+FH-CORE [INFO ] [HV] created SvmVcpu(vmcb: PA:0x226000)
+FH-CORE [DEBUG] Setting up vCPU[0] entry at GPA:0x0
+FH-CORE [INFO ] VM setup: id=4
+FH-CORE [INFO ] Setting up vcpus...
+FH-CORE [INFO ] Initializing VM[1]'s 1 vcpus
+FH-CORE [INFO ] Spawning task for VM[1] VCpu[0]
+FH: task create handle=3 name=VM[1]-VCpu[0] mask=0x0
+FH-CORE [INFO ] VCpu task VM[1]-VCpu[0] created
+FH-CORE [INFO ] VM[1] VCpu[0] waiting for running
+FH-CORE [INFO ] Initializing VM[2]'s 1 vcpus
+FH-CORE [INFO ] Spawning task for VM[2] VCpu[0]
+FH: task create handle=4 name=VM[2]-VCpu[0] mask=0x1
+FH-CORE [INFO ] VCpu task VM[2]-VCpu[0] created
+FH-CORE [INFO ] Initializing VM[3]'s 1 vcpus
+FH-CORE [INFO ] Spawning task for VM[3] VCpu[0]
+FH: task create handle=5 name=VM[3]-VCpu[0] mask=0x0
+FH-CORE [INFO ] VCpu task VM[3]-VCpu[0] created
+FH-CORE [INFO ] Initializing VM[4]'s 1 vcpus
+FH-CORE [INFO ] Spawning task for VM[4] VCpu[0]
+FH-CORE [INFO ] VM[3] VCpu[0] waiting for running
+FH: task create handle=6 name=VM[4]-VCpu[0] mask=0x1
+FH-CORE [INFO ] VCpu task VM[4]-VCpu[0] created
+FH-CORE [INFO ] VMM starting, booting VMs...
+FH-CORE [INFO ] Booting VM[1]
+FH-CORE [INFO ] VM[1] boot success
+FH-CORE [INFO ] Booting VM[2]
+FH-CORE [INFO ] VM[2] boot success
+FH-CORE [INFO ] Booting VM[3]
+FH-CORE [INFO ] VM[3] boot success
+FH-CORE [INFO ] Booting VM[4]
+FH-CORE [INFO ] VM[4] boot success
+FH-CORE [INFO ] VM[1] VCpu[0] running...
+FH-CORE [INFO ] VM[3] VCpu[0] running...
+FH-CORE [DEBUG] a VM exited, current running VM count: 4
+FH-CORE [INFO ] VM[2] VCpu[0] waiting for running
+FH-CORE [INFO ] VM[4] VCpu[0] waiting for running
+FH-CORE [DEBUG] Hypercall [1213615409] args [0, 0, 0, 0, 0, 0]
+FH-CORE [DEBUG] Hypercall [1213615409] args [0, 0, 0, 0, 0, 0]
+FH-CORE [DEBUG] a VM exited, current running VM count: 4
+FH-CORE [INFO ] VM[2] VCpu[0] running...
+FH-CORE [INFO ] VM[4] VCpu[0] running...
+FH-CORE [WARN ] Invalid hypercall code: 1213615409 e InvalidHyperCallCode(1213615409)
+FH-CORE [WARN ] Invalid hypercall code: 1213615409 e InvalidHyperCallCode(1213615409)
+FH-CORE [DEBUG] Hypercall [1213615409] args [0, 0, 0, 0, 0, 0]
+FH-CORE [DEBUG] Hypercall [1213615409] args [0, 0, 0, 0, 0, 0]
+FH-CORE [WARN ] [AxErrorKind::InvalidInput]
+FH-CORE [WARN ] [AxErrorKind::InvalidInput]
+FH-CORE [WARN ] Invalid hypercall code: 1213615409 e InvalidHyperCallCode(1213615409)
+FH-CORE [WARN ] Invalid hypercall code: 1213615409 e InvalidHyperCallCode(1213615409)
+FH-CORE [WARN ] Hypercall [0x48564d31] failed: AxErrorKind::InvalidInput
+FH-CORE [WARN ] Hypercall [0x48564d31] failed: AxErrorKind::InvalidInput
+FH-CORE [WARN ] [AxErrorKind::InvalidInput]
+FH-CORE [WARN ] [AxErrorKind::InvalidInput]
+FH-CORE [DEBUG] Hypercall [1381190961] args [0, 0, 69746e65, 444d4163, 0, 0]
+FH-CORE [WARN ] Hypercall [0x48564d31] failed: AxErrorKind::InvalidInput
+FH-CORE [WARN ] Hypercall [0x48564d31] failed: AxErrorKind::InvalidInput
+FH-CORE [WARN ] Invalid hypercall code: 1381190961 e InvalidHyperCallCode(1381190961)
+FH-CORE [DEBUG] Hypercall [1381190961] args [0, 0, 69746e65, 444d4163, 0, 0]
+FH-CORE [DEBUG] Hypercall [1381190961] args [0, 0, 69746e65, 444d4163, 0, 0]
+FH-CORE [WARN ] [AxErrorKind::InvalidInput]
+FH-CORE [WARN ] Invalid hypercall code: 1381190961 e InvalidHyperCallCode(1381190961)
+FH-CORE [WARN ] Invalid hypercall code: 1381190961 e InvalidHyperCallCode(1381190961)
+FH-CORE [WARN ] Hypercall [0x52534d31] failed: AxErrorKind::InvalidInput
+FH-CORE [WARN ] [AxErrorKind::InvalidInput]
+FH-CORE [WARN ] [AxErrorKind::InvalidInput]
+FH-CORE [DEBUG] Hypercall [1381190962] args [0, 0, 0, 444d4163, 0, 0]
+FH-CORE [WARN ] Hypercall [0x52534d31] failed: AxErrorKind::InvalidInput
+FH-CORE [WARN ] Hypercall [0x52534d31] failed: AxErrorKind::InvalidInput
+FH-CORE [WARN ] Invalid hypercall code: 1381190962 e InvalidHyperCallCode(1381190962)
+FH-CORE [DEBUG] Hypercall [1381190962] args [0, 0, 0, 444d4163, 0, 0]
+FH-CORE [DEBUG] Hypercall [1381190962] args [0, 0, 0, 444d4163, 0, 0]
+FH-CORE [WARN ] [AxErrorKind::InvalidInput]
+FH-CORE [WARN ] Invalid hypercall code: 1381190962 e InvalidHyperCallCode(1381190962)
+FH-CORE [WARN ] Invalid hypercall code: 1381190962 e InvalidHyperCallCode(1381190962)
+FH-CORE [WARN ] Hypercall [0x52534d32] failed: AxErrorKind::InvalidInput
+FH-CORE [WARN ] [AxErrorKind::InvalidInput]
+FH-CORE [WARN ] [AxErrorKind::InvalidInput]
+FH-CORE [DEBUG] Hypercall [1381190961] args [0, 0, 69746e65, 444d4163, 0, 0]
+FH-CORE [WARN ] VM[3] run VCpu[0] SystemDown
+FH-CORE [WARN ] Hypercall [0x52534d32] failed: AxErrorKind::InvalidInput
+FH-CORE [WARN ] Hypercall [0x52534d32] failed: AxErrorKind::InvalidInput
+FH-CORE [WARN ] Invalid hypercall code: 1381190961 e InvalidHyperCallCode(1381190961)
+FH-CORE [INFO ] Shutting down VM[3]
+FH-CORE [WARN ] VM[2] run VCpu[0] SystemDown
+FH-CORE [WARN ] [AxErrorKind::InvalidInput]
+FH-CORE [INFO ] Shutting down VM[2]
+FH-CORE [WARN ] VM[4] run VCpu[0] SystemDown
+FH-CORE [WARN ] Hypercall [0x52534d31] failed: AxErrorKind::InvalidInput
+FH-CORE [WARN ] VM[3] VCpu[0] stopping because of VM stopping
+FH-CORE [WARN ] VM[2] VCpu[0] stopping because of VM stopping
+FH-CORE [INFO ] Shutting down VM[4]
+FH-CORE [DEBUG] Hypercall [1381190962] args [0, 0, 0, 444d4163, 0, 0]
+FH-CORE [INFO ] VM[3] VCpu[0] last VCpu exiting, decreasing running VM count
+FH-CORE [INFO ] VM[2] VCpu[0] last VCpu exiting, decreasing running VM count
+FH-CORE [WARN ] VM[4] VCpu[0] stopping because of VM stopping
+FH-CORE [WARN ] Invalid hypercall code: 1381190962 e InvalidHyperCallCode(1381190962)
+FH-CORE [INFO ] VM[3] state changed to Stopped
+FH-CORE [INFO ] VM[2] state changed to Stopped
+FH-CORE [INFO ] VM[4] VCpu[0] last VCpu exiting, decreasing running VM count
+FH-CORE [WARN ] [AxErrorKind::InvalidInput]
+FH-CORE [DEBUG] a VM exited, current running VM count: 3
+FH-CORE [INFO ] VM[3] VCpu[0] exiting...
+FH-CORE [INFO ] VM[2] VCpu[0] exiting...
+FH-CORE [INFO ] VM[4] state changed to Stopped
+FH-CORE [WARN ] Hypercall [0x52534d32] failed: AxErrorKind::InvalidInput
+FH-CORE [DEBUG] a VM exited, current running VM count: 2
+FH-CORE [INFO ] VM[4] VCpu[0] exiting...
+FH-CORE [DEBUG] a VM exited, current running VM count: 1
+FH-CORE [WARN ] VM[1] run VCpu[0] SystemDown
+FH-CORE [INFO ] Shutting down VM[1]
+FH-CORE [DEBUG] a VM exited, current running VM count: 1
+FH-CORE [WARN ] VM[1] VCpu[0] stopping because of VM stopping
+FH-CORE [INFO ] VM[1] VCpu[0] last VCpu exiting, decreasing running VM count
+FH-CORE [INFO ] VM[1] state changed to Stopped
+FH-CORE [INFO ] VM[1] VCpu[0] exiting...
+FH-CORE [DEBUG] a VM exited, current running VM count: 0
+FH-CORE [INFO ] [OK] Default guest initialized
+FH-CORE [INFO ] VM[1] Joining 1 VCpu tasks...
+FH-CORE [DEBUG] VM[1] Joining VCpu task[0]: VM[1]-VCpu[0]
+FH_TASK_STATS handle=3 name=VM[1]-VCpu[0] run=1 exit=1 block=1 wake=1 yield=3
+FH-CORE [DEBUG] VM[1] VCpu task[0] exited
+FH-CORE [INFO ] VM[1] VCpu resources cleaned up, 1 VCpu tasks joined successfully
+FH-CORE [INFO ] VM[2] Joining 1 VCpu tasks...
+FH-CORE [DEBUG] VM[2] Joining VCpu task[0]: VM[2]-VCpu[0]
+FH_TASK_STATS handle=4 name=VM[2]-VCpu[0] run=1 exit=1 block=0 wake=0 yield=0
+FH-CORE [DEBUG] VM[2] VCpu task[0] exited
+FH-CORE [INFO ] VM[2] VCpu resources cleaned up, 1 VCpu tasks joined successfully
+FH-CORE [INFO ] VM[3] Joining 1 VCpu tasks...
+FH-CORE [DEBUG] VM[3] Joining VCpu task[0]: VM[3]-VCpu[0]
+FH_TASK_STATS handle=5 name=VM[3]-VCpu[0] run=1 exit=1 block=1 wake=1 yield=0
+FH-CORE [DEBUG] VM[3] VCpu task[0] exited
+FH-CORE [INFO ] VM[3] VCpu resources cleaned up, 1 VCpu tasks joined successfully
+FH-CORE [INFO ] VM[4] Joining 1 VCpu tasks...
+FH-CORE [DEBUG] VM[4] Joining VCpu task[0]: VM[4]-VCpu[0]
+FH_TASK_STATS handle=6 name=VM[4]-VCpu[0] run=1 exit=1 block=0 wake=0 yield=1
+FH-CORE [DEBUG] VM[4] VCpu task[0] exited
+FH-CORE [INFO ] VM[4] VCpu resources cleaned up, 1 VCpu tasks joined successfully
+FH-CORE [INFO ] Disabling hardware virtualization support on all cores...
+FH: task create handle=7 name=axvisor-exit-cpu-0 mask=0x1
+FH-CORE [INFO ] Disabling hardware virtualization support on core 0
+FH: task create handle=8 name=axvisor-exit-cpu-1 mask=0x2
+FH-CORE [INFO ] Disabling hardware virtualization support on core 1
+FH-CORE [DEBUG] [AxVM] deallocated PhysFrame(PA:0x201000)
+FH-CORE [DEBUG] [AxVM] deallocated PhysFrame(PA:0x200000)
+FH-CORE [INFO ] [AxVM] succeeded to turn off SVM.
+FH-CORE [INFO ] [AxVM] succeeded to turn off SVM.
+FH-CORE [INFO ] Hardware virtualization support disabled on core 0
+FH-CORE [INFO ] Hardware virtualization support disabled on core 1
+FH_TASK_STATS handle=7 name=axvisor-exit-cpu-0 run=1 exit=1 block=0 wake=0 yield=0
+FH_TASK_STATS handle=8 name=axvisor-exit-cpu-1 run=1 exit=1 block=0 wake=0 yield=0
+FH-CORE [INFO ] All cores have disabled hardware virtualization support.
+FH_RESULT core-static result=PASS

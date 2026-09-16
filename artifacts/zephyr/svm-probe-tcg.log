@@ -1,0 +1,12 @@
+c[?7l[2J[0mSeaBIOS (version rel-1.16.3-0-ga6ed6b701f0a-prebuilt.qemu.org)
+Booting from ROM..
+*** Booting Zephyr OS build v4.4.0 ***
+FH: Zephyr host adapter start cpus=2 current_cpu=0
+FH: reserved pool PA [0x200000, 0x1200000) VA=0x200000 pages=4096
+FH: dedicated IPI vector=240 scheduler=34 tlb=35
+FH_PROBE vendor=AuthenticAMD max_basic=0xd
+FH_PROBE CPUID.80000001h.ECX=0x177 SVM=yes
+FH_PROBE SVM revision=1 ASIDs=16 features=0x10010001 NPT=yes
+FH_PROBE EFER=0xd01 VM_CR=0x0 VM_HSAVE_PA=0x0
+FH_PROBE SVM_AVAILABLE=PASS
+FH_RESULT svm-probe result=PASS

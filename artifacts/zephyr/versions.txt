@@ -1,0 +1,18 @@
+freehypervisor=628dec483f0160cbd6035034bf3af4889f6350a4
+linux_host=66936b14da0f71cac105a9c4b7eb8e25032f13a0
+core=534de06e3855a31ff2d74e9faa75c6cdcc2cf8d8
+asterinas_reference=68226d2303136dc8bf851937087f4a8c61748575
+zephyr=684c9e8f32e4373a21098559f748f06915f950c9
+zephyr_toolchain_variant=host
+zephyr_sdk=not-used-host-toolchain
+qemu_binary=/workspace/scratch/4a1803cbed2d/freehypervisor/build/zephyr/qemu-tcg/qemu-system-x86_64
+qemu=QEMU emulator version 8.2.2 (v8.2.2-dirty)
+qemu_tcg_qemu_commit=11aa0b1ff115b86160c4d37e7c37e6a6b13b77ea
+qemu_tcg_patch=0001-tcg-svm-apply-npt-to-nonpaging-guests.patch
+qemu_tcg_QEMU emulator version 8.2.2 (v8.2.2-dirty)
+rust=rustc 1.98.0-nightly (57d06900f 2026-05-27)
+cargo=cargo 1.98.0-nightly (fbb61be30 2026-05-26)
+cc=cc (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0
+cmake=cmake version 3.28.3
+ninja=1.11.1
+west=West version: v1.5.0

@@ -35,6 +35,15 @@ data/strace/
 *.log
 *.out
 
+# Reproducibility evidence is intentionally versioned.
+!artifacts/
+!artifacts/zephyr/
+!artifacts/zephyr/*.log
+
+# Zephyr/Rust build products and local reference trees.
+build/zephyr/
+.west/
+
 # IDE
 .vscode/
 .idea/

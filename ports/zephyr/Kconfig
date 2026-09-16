@@ -1,0 +1,54 @@
+menuconfig FREEHYPERVISOR
+	bool "FreeHypervisor Zephyr host adapter"
+	depends on X86_64 && SMP && MMU
+	help
+	  Host/substrate adapter for the reusable FreeHypervisor Core.
+
+if FREEHYPERVISOR
+
+config FREEHYPERVISOR_CORE
+	bool "Link and execute the Rust Hypervisor Core"
+	default y if FREEHYPERVISOR_MODE_CORE || FREEHYPERVISOR_MODE_KICK
+	default n
+
+config FREEHYPERVISOR_CONTRACT_TESTS
+	bool "Enable deterministic adapter contract test hooks"
+	default y if FREEHYPERVISOR_MODE_CONTRACT || FREEHYPERVISOR_MODE_LIFETIME
+	default n
+
+config FREEHYPERVISOR_DEDICATED_IPI
+	bool "Enable the dedicated hypervisor IPI vector"
+	default y
+
+config FREEHYPERVISOR_IPI_VECTOR
+	int "Dedicated hypervisor IPI vector"
+	default 240
+	range 224 254
+
+config FREEHYPERVISOR_POOL_MIB
+	int "Reserved hypervisor physical pool size in MiB"
+	default 16
+	range 8 64
+
+choice FREEHYPERVISOR_APP_MODE
+	prompt "FreeHypervisor validation application mode"
+	default FREEHYPERVISOR_MODE_CONTRACT
+
+config FREEHYPERVISOR_MODE_CONTRACT
+	bool "Adapter contract tests"
+
+config FREEHYPERVISOR_MODE_LIFETIME
+	bool "Lifetime/interleaving tests"
+
+config FREEHYPERVISOR_MODE_PROBE
+	bool "Hardware capability probe"
+
+config FREEHYPERVISOR_MODE_CORE
+	bool "Run the static Hypervisor Core"
+
+config FREEHYPERVISOR_MODE_KICK
+	bool "Run Core plus an in-guest dedicated IPI"
+
+endchoice
+
+endif

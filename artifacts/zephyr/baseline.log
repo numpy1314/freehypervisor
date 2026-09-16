@@ -3,7 +3,7 @@ Booting from ROM..
 *** Booting Zephyr OS build v4.4.0 ***
 BASELINE cpu_count=2 current_cpu=0
 BASELINE thread_cpu=1 semaphore=PASS spinlock=PASS
-BASELINE timer monotonic=PASS before=30000000 after=40000000
+BASELINE timer monotonic=PASS before=20000000 after=30000000
 BASELINE translation VA=0x10c000 PA=0x10c000 result=PASS
 BASELINE dedicated_ipi vector=239 cpu=1 result=PASS
 BASELINE_RESULT=PASS

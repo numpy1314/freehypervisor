@@ -13,7 +13,8 @@ The port preserves the research boundary: Zephyr supplies host authority through
 | Input | Pinned value |
 |---|---|
 | FreeHypervisor base | `628dec483f0160cbd6035034bf3af4889f6350a4` |
-| Tested Zephyr-port implementation | current `port/zephyr-x86_64` working tree; the publication commit is recorded after evidence finalization |
+| Tested local Zephyr-port implementation | `29704d17a9663f8521332a3545b64ff5862b94f7` |
+| Published tree-equivalent implementation | `19444749514592616d3e0ce35f2a0ef245bbe28c` (tree `13f020559150ef6e42c686982f298bef0149af6a`) |
 | Hypervisor Core | `534de06e3855a31ff2d74e9faa75c6cdcc2cf8d8` |
 | Linux host submodule | `66936b14da0f71cac105a9c4b7eb8e25032f13a0` |
 | Asterinas reference | `68226d2303136dc8bf851937087f4a8c61748575` |
